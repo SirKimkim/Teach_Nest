@@ -1,0 +1,3077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TeachNest — Teaching Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cdefs%3E%3ClinearGradient id='g1' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234f8ef7'/%3E%3Cstop offset='1' stop-color='%23a259ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='200' height='200' rx='26' fill='url(%23g1)'/%3E%3Crect x='40' y='50' width='120' height='76' rx='11' fill='%23ffffff' fill-opacity='0.16'/%3E%3Cpath d='M60 88 L76 104 L110 65' stroke='%23ffffff' stroke-width='8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M48 148 L82 129 L110 154 L150 116' stroke='%23ffffff' stroke-width='7' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/7.8.2/docx.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+/* ── DESIGN TOKENS ── */
+:root {
+--bg: #08090e;
+--surface: #0f1117;
+--surface2: #161b27;
+--surface3: #1d2436;
+--border: rgba(255,255,255,0.07);
+--border2: rgba(255,255,255,0.12);
+--accent: #4f8ef7;
+--accent-g: #00e5a0;
+--accent-p: #a259ff;
+--accent-o: #ff7240;
+--danger: #ff3355;
+--warn: #f7b731;
+--text: #e8eaf6;
+--text-2: #9299b8;
+--text-3: #5a6080;
+--glow-b: rgba(79,142,247,0.15);
+--glow-g: rgba(0,229,160,0.15);
+--glow-p: rgba(162,89,255,0.15);
+--radius: 14px;
+--radius-lg: 20px;
+--shadow: 0 8px 40px rgba(0,0,0,0.5);
+--font: 'Inter', system-ui, sans-serif;
+--mono: 'JetBrains Mono', monospace;
+--sidebar: 260px;
+--header: 60px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+font-family: var(--font);
+background: var(--bg);
+color: var(--text);
+min-height: 100vh;
+line-height: 1.6;
+-webkit-font-smoothing: antialiased;
+background-image:
+radial-gradient(ellipse 60% 40% at 10% 5%, rgba(79,142,247,0.06) 0%, transparent 70%),
+radial-gradient(ellipse 50% 50% at 90% 90%, rgba(162,89,255,0.05) 0%, transparent 70%);
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 10px; }
+
+/* ── HEADER ── */
+header {
+height: var(--header);
+display: flex; align-items: center; justify-content: space-between;
+padding: 0 24px;
+background: rgba(8,9,14,0.9);
+backdrop-filter: blur(20px);
+border-bottom: 1px solid var(--border);
+position: sticky; top: 0; z-index: 200;
+}
+.header-left { display: flex; align-items: center; gap: 14px; }
+.logo-mark {
+width: 34px; height: 34px;
+background: linear-gradient(135deg, var(--accent), var(--accent-p));
+border-radius: 9px;
+display: flex; align-items: center; justify-content: center;
+font-size: 16px;
+box-shadow: 0 0 20px var(--glow-b);
+}
+.logo-name {
+font-size: 1rem; font-weight: 800; letter-spacing: -0.5px;
+background: linear-gradient(90deg, var(--text), var(--accent));
+-webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.logo-name em { font-style: normal; -webkit-text-fill-color: var(--text-2); font-weight: 400; }
+
+.header-right { display: flex; align-items: center; gap: 10px; }
+
+.api-status-pill {
+display: flex; align-items: center; gap: 7px;
+padding: 6px 14px; border-radius: 20px;
+border: 1px solid var(--border);
+background: var(--surface2);
+font-size: 0.75rem; color: var(--text-2);
+cursor: pointer; transition: all 0.2s;
+}
+.api-status-pill:hover { border-color: var(--accent); color: var(--accent); }
+.status-dot {
+width: 6px; height: 6px; border-radius: 50%;
+background: var(--text-3); transition: all 0.3s;
+}
+.status-dot.live { background: var(--accent-g); box-shadow: 0 0 8px var(--accent-g); }
+.status-dot.error { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+
+.chip-badge {
+padding: 5px 12px; border-radius: 20px;
+background: linear-gradient(90deg, var(--accent-p), var(--accent));
+font-size: 0.68rem; font-weight: 700; letter-spacing: 1px;
+color: #fff; text-transform: uppercase;
+}
+
+/* ── LAYOUT ── */
+.app-shell {
+display: grid;
+grid-template-columns: var(--sidebar) 1fr;
+min-height: calc(100vh - var(--header));
+}
+
+/* ── SIDEBAR ── */
+aside {
+background: var(--surface);
+border-right: 1px solid var(--border);
+padding: 16px 12px;
+display: flex; flex-direction: column; gap: 4px;
+position: sticky; top: var(--header);
+height: calc(100vh - var(--header));
+overflow-y: auto;
+}
+.nav-section {
+font-size: 0.65rem; font-weight: 700; letter-spacing: 2px;
+color: var(--text-3); text-transform: uppercase;
+padding: 10px 12px 5px; margin-top: 6px;
+}
+.nav-item {
+display: flex; align-items: center; gap: 10px;
+padding: 10px 12px; border-radius: var(--radius);
+border: 1px solid transparent;
+background: transparent; color: var(--text-2);
+font-family: var(--font); font-size: 0.85rem; font-weight: 500;
+cursor: pointer; transition: all 0.18s; text-align: left; width: 100%;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active {
+background: var(--surface3);
+border-color: var(--border2);
+color: var(--text);
+}
+.nav-item .ni {
+width: 28px; height: 28px; border-radius: 8px;
+display: flex; align-items: center; justify-content: center;
+font-size: 14px; flex-shrink: 0;
+background: var(--surface3);
+}
+.nav-item.active .ni { background: linear-gradient(135deg, var(--accent), var(--accent-p)); }
+.nav-item.merge-item.active .ni { background: linear-gradient(135deg, var(--accent-o), #e05a1a); }
+.nav-item .n-label { flex: 1; }
+.nav-item .n-badge {
+font-size: 0.62rem; padding: 2px 7px; border-radius: 10px;
+background: linear-gradient(90deg, var(--accent-o), #e05a1a);
+color: #fff; font-weight: 700;
+}
+
+/* ── MAIN ── */
+main { padding: 32px; overflow-y: auto; max-width: 1200px; }
+
+/* ── PANEL ── */
+.panel { display: none; animation: slideUp 0.25s ease; }
+.panel.active { display: block; }
+@keyframes slideUp {
+from { opacity: 0; transform: translateY(12px); }
+to { opacity: 1; transform: translateY(0); }
+}
+.panel-header { margin-bottom: 28px; }
+.panel-title {
+font-size: 1.75rem; font-weight: 800; letter-spacing: -0.8px;
+background: linear-gradient(135deg, var(--text) 60%, var(--accent));
+-webkit-background-clip: text; -webkit-text-fill-color: transparent;
+line-height: 1.2; margin-bottom: 6px;
+}
+.panel-sub { color: var(--text-2); font-size: 0.88rem; }
+
+/* ── FORMS ── */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.form-grid.col3 { grid-template-columns: repeat(3, 1fr); }
+.fg-full { grid-column: 1/-1; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label {
+font-size: 0.72rem; font-weight: 700; letter-spacing: 1px;
+color: var(--text-2); text-transform: uppercase;
+}
+input[type=text], input[type=password], input[type=number], input[type=email],
+textarea, select {
+background: var(--surface2);
+border: 1px solid var(--border);
+color: var(--text);
+font-family: var(--font); font-size: 0.88rem;
+border-radius: var(--radius); padding: 11px 14px;
+outline: none; transition: border-color 0.2s, box-shadow 0.2s; width: 100%;
+resize: none;
+}
+input:focus, textarea:focus, select:focus {
+border-color: var(--accent);
+box-shadow: 0 0 0 3px var(--glow-b);
+}
+select option { background: var(--surface2); }
+textarea { resize: vertical; }
+
+/* ── BUTTONS ── */
+.btn {
+display: inline-flex; align-items: center; gap: 7px;
+padding: 11px 20px; border-radius: var(--radius);
+border: none; font-family: var(--font); font-weight: 600;
+font-size: 0.85rem; cursor: pointer; transition: all 0.18s;
+white-space: nowrap;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary {
+background: linear-gradient(135deg, var(--accent), #3a7de8);
+color: #fff; box-shadow: 0 4px 20px rgba(79,142,247,0.3);
+}
+.btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(79,142,247,0.45); }
+.btn-ghost {
+background: var(--surface2); color: var(--text-2);
+border: 1px solid var(--border);
+}
+.btn-ghost:hover:not(:disabled) { border-color: var(--border2); color: var(--text); }
+.btn-success {
+background: linear-gradient(135deg, var(--accent-g), #00b377);
+color: #000; font-weight: 700;
+}
+.btn-danger { background: rgba(255,51,85,0.15); color: var(--danger); border: 1px solid rgba(255,51,85,0.3); }
+.btn-orange {
+background: linear-gradient(135deg, var(--accent-o), #e05a1a);
+color: #fff; box-shadow: 0 4px 20px rgba(255,114,64,0.3);
+}
+.btn-orange:hover:not(:disabled) { transform: translateY(-1px); }
+.btn-sm { padding: 7px 14px; font-size: 0.78rem; }
+.btn-xs { padding: 4px 10px; font-size: 0.72rem; border-radius: 8px; }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ── CARDS ── */
+.card {
+background: var(--surface);
+border: 1px solid var(--border);
+border-radius: var(--radius-lg);
+padding: 20px;
+}
+.card-accent { border-top: 2px solid var(--accent); }
+.card-orange { border-top: 2px solid var(--accent-o); }
+
+/* ── RESULT BOX ── */
+.result-box {
+background: var(--surface);
+border: 1px solid var(--border);
+border-radius: var(--radius-lg);
+padding: 22px; font-size: 0.88rem;
+line-height: 1.85; white-space: pre-wrap;
+color: var(--text); min-height: 80px; margin-top: 18px;
+}
+.result-box.loading { color: var(--text-2); font-style: italic; }
+
+/* ── TAGS / CHIPS ── */
+.tag {
+display: inline-flex; align-items: center; gap: 4px;
+padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
+}
+.tag-blue { background: rgba(79,142,247,0.12); color: var(--accent); border: 1px solid rgba(79,142,247,0.25); }
+.tag-green { background: rgba(0,229,160,0.1); color: var(--accent-g); border: 1px solid rgba(0,229,160,0.25); }
+.tag-red { background: rgba(255,51,85,0.1); color: var(--danger); border: 1px solid rgba(255,51,85,0.25); }
+.tag-orange { background: rgba(255,114,64,0.1); color: var(--accent-o); border: 1px solid rgba(255,114,64,0.25); }
+
+/* ── MODAL ── */
+.modal-overlay {
+position: fixed; inset: 0; z-index: 1000;
+background: rgba(0,0,0,0.8); backdrop-filter: blur(8px);
+display: flex; align-items: center; justify-content: center;
+animation: fadeIn 0.2s;
+}
+.modal-overlay.hidden { display: none !important; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal {
+background: var(--surface);
+border: 1px solid var(--border2);
+border-radius: var(--radius-lg);
+padding: 36px; width: 90%; max-width: 500px;
+box-shadow: var(--shadow);
+animation: slideUp 0.25s ease;
+}
+.modal h2 { font-size: 1.2rem; font-weight: 800; margin-bottom: 8px; }
+.modal p { font-size: 0.85rem; color: var(--text-2); margin-bottom: 20px; line-height: 1.7; }
+
+/* ── STATUS BAR ── */
+.status-toast {
+position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+padding: 12px 20px; border-radius: var(--radius);
+font-size: 0.82rem; font-weight: 600;
+box-shadow: var(--shadow); transition: opacity 0.4s;
+pointer-events: none;
+}
+.status-toast.info { background: var(--surface2); color: var(--text-2); border: 1px solid var(--border); }
+.status-toast.ok { background: #0d2e1e; color: var(--accent-g); border: 1px solid rgba(0,229,160,0.4); }
+.status-toast.err { background: #2e0d14; color: var(--danger); border: 1px solid rgba(255,51,85,0.4); }
+
+/* ── CHAT ── */
+.chat-window {
+background: var(--surface);
+border: 1px solid var(--border);
+border-radius: var(--radius-lg);
+height: 440px; overflow-y: auto;
+padding: 20px; display: flex; flex-direction: column; gap: 14px;
+margin-bottom: 14px; scroll-behavior: smooth;
+}
+.msg { display: flex; gap: 10px; align-items: flex-start; }
+.msg.user { flex-direction: row-reverse; }
+.msg-av {
+width: 32px; height: 32px; border-radius: 50%;
+display: flex; align-items: center; justify-content: center;
+font-size: 13px; flex-shrink: 0;
+}
+.msg.ai .msg-av { background: linear-gradient(135deg, var(--accent), var(--accent-p)); }
+.msg.user .msg-av { background: linear-gradient(135deg, var(--accent-g), #009966); }
+.msg-bub {
+max-width: 75%; padding: 12px 16px; border-radius: 14px;
+font-size: 0.87rem; line-height: 1.65; white-space: pre-wrap;
+}
+.msg.ai .msg-bub { background: var(--surface2); border: 1px solid var(--border); }
+.msg.user .msg-bub {
+background: linear-gradient(135deg, rgba(79,142,247,0.2), rgba(162,89,255,0.12));
+border: 1px solid rgba(79,142,247,0.25);
+}
+.typing { display: flex; gap: 5px; padding: 4px 0; }
+.typing span {
+width: 6px; height: 6px; border-radius: 50%;
+background: var(--accent); animation: bounce 1.2s infinite;
+}
+.typing span:nth-child(2) { animation-delay: .2s; }
+.typing span:nth-child(3) { animation-delay: .4s; }
+@keyframes bounce { 0%,80%,100%{transform:scale(0.8);opacity:.5} 40%{transform:scale(1.2);opacity:1} }
+.chat-input-row { display: flex; gap: 10px; }
+.quick-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.qchip {
+padding: 6px 14px; border-radius: 20px;
+background: var(--surface2); border: 1px solid var(--border);
+color: var(--text-2); font-size: 0.78rem; cursor: pointer; transition: all 0.18s;
+}
+.qchip:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,142,247,0.08); }
+
+/* ── QUIZ ── */
+.quiz-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 16px; }
+.quiz-qnum { font-family: var(--mono); font-size: 0.7rem; color: var(--accent); letter-spacing: 2px; margin-bottom: 10px; text-transform: uppercase; }
+.quiz-qtext { font-size: 1rem; font-weight: 600; margin-bottom: 16px; }
+.quiz-opts { display: flex; flex-direction: column; gap: 10px; }
+.quiz-opt {
+padding: 12px 16px; border-radius: var(--radius); border: 1px solid var(--border);
+background: var(--surface2); color: var(--text); cursor: pointer;
+font-family: var(--font); font-size: 0.87rem; transition: all 0.18s; text-align: left;
+}
+.quiz-opt:hover:not(:disabled) { border-color: var(--accent); background: rgba(79,142,247,0.08); }
+.quiz-opt.correct { border-color: var(--accent-g); background: rgba(0,229,160,0.08); color: var(--accent-g); }
+.quiz-opt.wrong { border-color: var(--danger); background: rgba(255,51,85,0.08); color: var(--danger); }
+.score-pill {
+display: inline-flex; align-items: center; gap: 6px;
+padding: 6px 16px; border-radius: 20px;
+background: rgba(0,229,160,0.1); border: 1px solid rgba(0,229,160,0.3);
+color: var(--accent-g); font-weight: 700; font-size: 0.92rem; margin-bottom: 14px;
+}
+
+/* ── KAHOOT ── */
+.kahoot-banner {
+background: linear-gradient(135deg, #46178f, #6b2fa0);
+border-radius: var(--radius-lg); padding: 28px; margin-bottom: 24px;
+position: relative; overflow: hidden;
+}
+.kahoot-banner::after {
+content: '🎮'; position: absolute; right: 24px; top: 50%;
+transform: translateY(-50%); font-size: 56px; opacity: 0.25;
+}
+.kahoot-banner h2 { font-size: 1.3rem; font-weight: 800; margin-bottom: 6px; }
+.kahoot-banner p { font-size: 0.85rem; opacity: 0.75; max-width: 480px; }
+.kahoot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.kbtn {
+border-radius: var(--radius); padding: 18px;
+font-weight: 700; font-size: 0.92rem; cursor: pointer;
+border: none; color: #fff; transition: transform 0.15s;
+display: flex; flex-direction: column; gap: 6px;
+}
+.kbtn:hover { transform: scale(1.02); }
+.kbtn span { font-size: 1.5rem; }
+.k-red { background: linear-gradient(135deg,#e21b3c,#b01); }
+.k-blue { background: linear-gradient(135deg,#1368ce,#0a40a0); }
+.k-yellow { background: linear-gradient(135deg,#d89e00,#aa7800); }
+.k-green { background: linear-gradient(135deg,#26890c,#186006); }
+.kahoot-q-display { background: #46178f; border-radius: var(--radius); padding: 20px; text-align: center; margin-bottom: 14px; }
+.kahoot-timer { font-family: var(--mono); font-size: 2.5rem; font-weight: 700; color: var(--accent-g); text-align: center; margin: 8px 0; }
+.kahoot-result { background: var(--surface); border: 1px solid rgba(70,23,143,0.4); border-radius: var(--radius-lg); padding: 20px; white-space: pre-wrap; font-size: 0.87rem; line-height: 1.85; }
+
+/* ── STUDENTS ── */
+.summary-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 24px; }
+.summ-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; text-align: center; }
+.summ-val { font-size: 1.9rem; font-weight: 800; line-height: 1; }
+.summ-lbl { font-size: 0.72rem; color: var(--text-2); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.students-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 14px; margin-bottom: 24px; }
+.student-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; transition: border-color 0.2s; }
+.student-card:hover { border-color: var(--border2); }
+.sc-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.sc-avatar {
+width: 38px; height: 38px; border-radius: 50%;
+display: flex; align-items: center; justify-content: center;
+font-size: 14px; font-weight: 800; flex-shrink: 0;
+background: linear-gradient(135deg, var(--accent), var(--accent-p));
+}
+.sc-name { font-weight: 700; font-size: 0.92rem; }
+.sc-meta { font-size: 0.72rem; color: var(--text-2); }
+.sc-stats { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.stat-tag {
+padding: 3px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
+background: var(--surface2); border: 1px solid var(--border);
+}
+.stat-tag.good { border-color: rgba(0,229,160,0.3); color: var(--accent-g); background: rgba(0,229,160,0.08); }
+.stat-tag.warn { border-color: rgba(247,183,49,0.3); color: var(--warn); background: rgba(247,183,49,0.08); }
+.stat-tag.poor { border-color: rgba(255,51,85,0.3); color: var(--danger); background: rgba(255,51,85,0.08); }
+.sc-topics { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
+.topic-dot { padding: 2px 8px; border-radius: 10px; font-size: 0.68rem; background: rgba(79,142,247,0.1); color: var(--accent); border: 1px solid rgba(79,142,247,0.2); }
+.sc-note { font-size: 0.75rem; color: var(--text-2); font-style: italic; border-top: 1px solid var(--border); padding-top: 8px; margin-top: 4px; }
+.sc-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+
+/* ── MAIL MERGE SPECIFIC ── */
+.merge-hero {
+background: linear-gradient(135deg, rgba(255,114,64,0.12), rgba(162,89,255,0.08));
+border: 1px solid rgba(255,114,64,0.2);
+border-radius: var(--radius-lg); padding: 28px; margin-bottom: 28px;
+position: relative; overflow: hidden;
+}
+.merge-hero::after {
+content: '🔀'; position: absolute; right: 28px; top: 50%;
+transform: translateY(-50%); font-size: 52px; opacity: 0.2;
+}
+.merge-hero h2 { font-size: 1.3rem; font-weight: 800; margin-bottom: 6px; color: var(--accent-o); }
+.merge-hero p { font-size: 0.85rem; color: var(--text-2); max-width: 540px; }
+
+.merge-steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 28px; }
+.merge-step {
+background: var(--surface); border: 1px solid var(--border);
+border-radius: var(--radius-lg); padding: 20px;
+position: relative; transition: border-color 0.2s;
+}
+.merge-step.done { border-color: rgba(0,229,160,0.3); }
+.merge-step.active-step { border-color: rgba(255,114,64,0.4); }
+.step-num {
+width: 28px; height: 28px; border-radius: 50%;
+background: var(--surface3); border: 1px solid var(--border);
+display: flex; align-items: center; justify-content: center;
+font-size: 0.75rem; font-weight: 700; font-family: var(--mono);
+margin-bottom: 10px; color: var(--text-2);
+}
+.merge-step.done .step-num { background: rgba(0,229,160,0.12); border-color: rgba(0,229,160,0.3); color: var(--accent-g); }
+.merge-step.active-step .step-num { background: rgba(255,114,64,0.12); border-color: rgba(255,114,64,0.3); color: var(--accent-o); }
+.step-title { font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; }
+.step-sub { font-size: 0.75rem; color: var(--text-2); }
+.step-status { font-size: 0.72rem; margin-top: 8px; }
+
+.upload-zone {
+border: 2px dashed var(--border2);
+border-radius: var(--radius); padding: 24px 16px;
+text-align: center; cursor: pointer;
+transition: all 0.2s; background: var(--surface2);
+}
+.upload-zone:hover, .upload-zone.dragover {
+border-color: var(--accent-o); background: rgba(255,114,64,0.06);
+}
+.upload-zone input[type=file] { display: none; }
+.upload-icon { font-size: 2rem; margin-bottom: 8px; }
+.upload-label { font-size: 0.85rem; color: var(--text-2); margin-bottom: 4px; }
+.upload-sub { font-size: 0.72rem; color: var(--text-3); }
+.upload-done { font-size: 0.82rem; color: var(--accent-g); font-weight: 600; }
+
+.template-area {
+background: var(--surface2);
+border: 1px solid var(--border);
+border-radius: var(--radius-lg);
+padding: 20px; margin-bottom: 20px;
+font-size: 0.87rem; line-height: 1.8;
+min-height: 220px; position: relative;
+}
+.template-area .placeholder-hint {
+color: var(--text-3); font-style: italic;
+text-align: center; padding: 40px 20px;
+}
+
+.field-palette {
+display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;
+}
+.field-chip {
+display: inline-flex; align-items: center; gap: 5px;
+padding: 6px 12px; border-radius: 8px;
+background: rgba(255,114,64,0.1); border: 1px solid rgba(255,114,64,0.3);
+color: var(--accent-o); font-size: 0.78rem; font-weight: 600;
+cursor: grab; font-family: var(--mono); transition: all 0.18s;
+user-select: none;
+}
+.field-chip:hover { background: rgba(255,114,64,0.2); transform: translateY(-1px); }
+.field-chip:active { cursor: grabbing; }
+
+.merge-editor {
+background: #fff; color: #111;
+border-radius: var(--radius); padding: 24px 28px;
+min-height: 280px; font-size: 0.9rem; line-height: 2;
+border: 1px solid var(--border2); position: relative;
+}
+.merge-editor [contenteditable] { outline: none; min-height: 200px; }
+.merge-placeholder {
+display: inline-flex; align-items: center; gap: 3px;
+background: #fff3e0; color: #e65100;
+border: 1px solid #ffb300; border-radius: 4px;
+padding: 1px 7px; font-size: 0.8rem; font-weight: 600;
+font-family: var(--mono); cursor: default;
+}
+
+.merge-preview-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+.merge-preview-table th {
+background: var(--surface3); padding: 9px 12px; text-align: left;
+font-size: 0.78rem; border-bottom: 1px solid var(--border);
+}
+.merge-preview-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 0.83rem; }
+.merge-preview-table tr:hover td { background: var(--surface2); }
+
+.merge-result-item {
+background: var(--surface2); border: 1px solid var(--border);
+border-radius: var(--radius); padding: 14px 16px; margin-bottom: 8px;
+display: flex; justify-content: space-between; align-items: center;
+}
+.saved-template-item {
+background: var(--surface2); border: 1px solid var(--border);
+border-radius: var(--radius); padding: 12px 16px; margin-bottom: 8px;
+display: flex; justify-content: space-between; align-items: center;
+cursor: pointer; transition: border-color 0.2s;
+}
+.saved-template-item:hover { border-color: rgba(255,114,64,0.4); }
+.saved-template-item.selected { border-color: var(--accent-o); background: rgba(255,114,64,0.07); }
+
+/* ── SETTINGS ── */
+.settings-section { margin-bottom: 28px; }
+.settings-section h3 { font-size: 0.85rem; font-weight: 700; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
+.brand-preview {
+background: var(--surface2); border: 1px solid var(--border);
+border-radius: var(--radius-lg); padding: 20px; margin-top: 14px;
+}
+
+/* ── PRINT ── */
+@media print {
+* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { background: #fff !important; color: #111 !important; }
+header, aside, .result-actions, .quick-chips, .chat-input-row,
+.modal-overlay, .status-toast { display: none !important; }
+.app-shell { display: block !important; }
+main { padding: 0 !important; }
+.panel { display: none !important; }
+#print-area {
+display: block !important; padding: 32px 40px;
+max-width: 780px; margin: 0 auto;
+}
+#print-area .p-school { font-size:0.85rem;font-weight:800;letter-spacing:1px;text-transform:uppercase; }
+#print-area .p-motto { font-size:0.75rem;color:#777;margin-bottom:12px; }
+#print-area .p-div { height:4px;border-radius:2px;margin-bottom:16px; }
+#print-area h1 { font-size:1.55rem;font-weight:800;padding-bottom:10px;margin-bottom:6px; }
+#print-area .p-meta { font-size:0.8rem;color:#555;margin-bottom:22px;display:flex;gap:16px;flex-wrap:wrap; }
+#print-area .p-meta span { font-weight:700; }
+#print-area .p-body { font-size:0.9rem;line-height:1.9;color:#222;white-space:pre-wrap; }
+#print-area .p-footer { margin-top:40px;padding-top:12px;border-top:1px solid #ccc;font-size:0.72rem;color:#888;display:flex;justify-content:space-between; }
+#print-area table { width:100%;border-collapse:collapse;font-size:0.82rem; }
+#print-area th { background:#f4f4f8;padding:8px 10px;text-align:left;border-bottom:2px solid #e0e0e0; }
+#print-area td { padding:7px 10px;border-bottom:1px solid #eee;vertical-align:top; }
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+:root { --sidebar: 0px; }
+.app-shell { grid-template-columns: 1fr; }
+aside { display: flex; flex-direction: row; overflow-x: auto; height: auto; position: relative; top: 0; }
+.nav-section { display: none; }
+.nav-item { min-width: max-content; }
+.form-grid, .form-grid.col3 { grid-template-columns: 1fr; }
+.merge-steps, .summary-grid { grid-template-columns: 1fr; }
+.kahoot-grid { grid-template-columns: 1fr; }
+}
+
+/* ── MISC ── */
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+.text-muted { color: var(--text-2); }
+.text-sm { font-size: 0.82rem; }
+.mono { font-family: var(--mono); }
+.flex { display: flex; }
+.flex-wrap { flex-wrap: wrap; }
+.gap-2 { gap: 8px; }
+.mt-2 { margin-top: 8px; }
+.mt-4 { margin-top: 16px; }
+.mt-6 { margin-top: 24px; }
+.hidden { display: none !important; }
+.glow-text { text-shadow: 0 0 20px var(--accent); }
+
+/* API Key modal extras */
+.key-input-wrap { position: relative; }
+.key-input-wrap input { font-family: var(--mono); font-size: 0.82rem; padding-right: 44px; }
+.key-vis-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-2); font-size: 1rem; }
+.key-status { font-size: 0.78rem; padding: 9px 13px; border-radius: 9px; margin-bottom: 16px; display: none; }
+.key-status.ok { background: rgba(0,229,160,0.1); color: var(--accent-g); border: 1px solid rgba(0,229,160,0.3); display: block; }
+.key-status.err { background: rgba(255,51,85,0.08); color: var(--danger); border: 1px solid rgba(255,51,85,0.3); display: block; }
+.key-status.info { background: rgba(79,142,247,0.08); color: var(--accent); border: 1px solid rgba(79,142,247,0.25); display: block; }
+
+/* Record modal */
+.rec-form { display: flex; flex-direction: column; gap: 14px; }
+.score-row { display: flex; gap: 10px; align-items: center; }
+.score-row input[type=number] { max-width: 90px; }
+.topics-input-row { display: flex; gap: 8px; }
+.topics-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 7px; }
+.topic-rm {
+display: flex; align-items: center; gap: 4px;
+padding: 3px 10px; border-radius: 20px; font-size: 0.75rem;
+background: rgba(79,142,247,0.12); color: var(--accent);
+border: 1px solid rgba(79,142,247,0.3); cursor: pointer;
+}
+.topic-rm:hover { background: rgba(255,51,85,0.1); color: var(--danger); border-color: rgba(255,51,85,0.3); }
+
+/* Bulk area */
+.bulk-area { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+.bulk-area label { font-size: 0.72rem; color: var(--text-2); font-weight: 700; display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* ── REGISTER ── */
+.week-nav { display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+.week-nav .week-label { font-weight:800; font-size:0.95rem; background:var(--surface); border:1px solid var(--border); padding:9px 16px; border-radius:var(--radius); min-width:220px; text-align:center; }
+.reg-table-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); overflow-x:auto; margin-bottom:22px; }
+table.reg-table { width:100%; border-collapse:collapse; min-width:640px; }
+table.reg-table th { background:var(--surface2); padding:12px 10px; font-size:0.72rem; text-transform:uppercase; letter-spacing:.5px; color:var(--text-2); text-align:center; border-bottom:1px solid var(--border); position:sticky; top:0; }
+table.reg-table th:first-child { text-align:left; }
+table.reg-table td { padding:9px 8px; border-bottom:1px solid var(--border); text-align:center; }
+table.reg-table td:first-child { text-align:left; font-weight:600; font-size:0.85rem; white-space:nowrap; }
+.att-btn {
+width:64px; padding:7px 4px; border-radius:9px; border:1px solid var(--border2);
+background:var(--surface2); color:var(--text-2); font-size:0.7rem; font-weight:700;
+cursor:pointer; transition:all .15s; letter-spacing:.3px;
+}
+.att-btn:hover { transform:translateY(-1px); }
+.att-btn.P { background:rgba(0,229,160,0.15); color:var(--accent-g); border-color:rgba(0,229,160,0.4); }
+.att-btn.A { background:rgba(255,51,85,0.15); color:var(--danger); border-color:rgba(255,51,85,0.4); }
+.att-btn.L { background:rgba(247,183,49,0.15); color:var(--warn); border-color:rgba(247,183,49,0.4); }
+.att-btn.E { background:rgba(79,142,247,0.15); color:var(--accent); border-color:rgba(79,142,247,0.4); }
+.reg-day-avg { font-size:0.68rem; color:var(--text-2); margin-top:2px; }
+.legend-row { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:18px; font-size:0.75rem; color:var(--text-2); align-items:center; }
+.legend-dot { display:inline-flex; align-items:center; gap:5px; }
+.legend-dot span.dot { width:11px; height:11px; border-radius:4px; display:inline-block; }
+
+/* ── BEHAVIOR TRACKER ── */
+.incident-toolbar { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:20px; }
+.incident-toolbar .field { min-width:170px; }
+.incident-list { display:flex; flex-direction:column; gap:12px; margin-bottom:24px; }
+.incident-card {
+background:var(--surface); border:1px solid var(--border); border-left:4px solid var(--accent);
+border-radius:var(--radius); padding:16px 18px; transition:border-color .2s;
+}
+.incident-card.sev-Low { border-left-color: var(--accent-g); }
+.incident-card.sev-Medium { border-left-color: var(--warn); }
+.incident-card.sev-High { border-left-color: var(--danger); }
+.inc-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+.inc-student { font-weight:700; font-size:0.95rem; display:flex; align-items:center; gap:8px; }
+.inc-meta { font-size:0.72rem; color:var(--text-2); display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+.inc-desc { font-size:0.86rem; color:var(--text); line-height:1.6; margin-bottom:8px; white-space:pre-wrap; }
+.inc-action { font-size:0.78rem; color:var(--text-2); font-style:italic; border-top:1px solid var(--border); padding-top:8px; }
+.sev-badge { padding:2px 10px; border-radius:20px; font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
+.sev-badge.Low { background:rgba(0,229,160,0.12); color:var(--accent-g); border:1px solid rgba(0,229,160,0.3); }
+.sev-badge.Medium { background:rgba(247,183,49,0.12); color:var(--warn); border:1px solid rgba(247,183,49,0.3); }
+.sev-badge.High { background:rgba(255,51,85,0.12); color:var(--danger); border:1px solid rgba(255,51,85,0.3); }
+.cat-badge { padding:2px 10px; border-radius:20px; font-size:0.68rem; font-weight:600; background:var(--surface2); color:var(--text-2); border:1px solid var(--border); }
+.share-menu { position:relative; display:inline-block; }
+.share-dropdown {
+position:absolute; top:calc(100% + 6px); right:0; background:var(--surface2); border:1px solid var(--border2);
+border-radius:var(--radius); box-shadow:var(--shadow); padding:6px; min-width:190px; z-index:150; display:none;
+}
+.share-dropdown.open { display:block; }
+.share-dropdown button {
+display:flex; align-items:center; gap:8px; width:100%; text-align:left; background:none; border:none;
+color:var(--text); font-size:0.82rem; padding:9px 10px; border-radius:8px; cursor:pointer;
+}
+.share-dropdown button:hover { background:var(--surface3); }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header>
+<div class="header-left">
+<div class="logo-mark" id="logoMark">
+<svg width="20" height="20" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+<rect x="40" y="50" width="120" height="76" rx="11" fill="#ffffff" fill-opacity="0.22"/>
+<path d="M60 88 L76 104 L110 65" stroke="#ffffff" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M48 148 L82 129 L110 154 L150 116" stroke="#ffffff" stroke-width="11" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+</div>
+<div class="logo-name">Teach<em>Nest</em></div>
+</div>
+<div class="header-right">
+<div class="api-status-pill" id="accountPill" onclick="openAccountModal()">
+<div class="status-dot" id="accountDot"></div>
+<span id="accountLabel">Sign in</span>
+</div>
+<div class="api-status-pill" id="apiPill" onclick="openKeyModal()">
+<div class="status-dot" id="statusDot"></div>
+<span id="statusLabel">Configure API Key</span>
+</div>
+<div class="chip-badge">Teacher Mode</div>
+</div>
+</header>
+
+<!-- ── ACCOUNT MODAL ── -->
+<div class="modal-overlay hidden" id="accountModal">
+<div class="modal" style="max-width:420px;">
+<h2 id="acctModalTitle">👤 Sign in to TeachNest</h2>
+<p id="acctModalSub">Sign in to sync your students, register, and incidents across every device you log in from.</p>
+<div id="acctNoFirebase" class="key-status info hidden">☁️ Cloud sync isn't set up on this copy yet. Go to <strong>Settings → Account &amp; Cloud Sync</strong> to connect a free Firebase project — until then, everything still works and saves locally on this device.</div>
+<div id="acctSignedOutForm">
+<div class="field" style="margin-bottom:12px;">
+<label>Email</label>
+<input type="email" id="acctEmail" placeholder="you@school.com" autocomplete="username">
+</div>
+<div class="field" style="margin-bottom:16px;">
+<label>Password</label>
+<input type="password" id="acctPassword" placeholder="At least 6 characters" autocomplete="current-password">
+</div>
+<div id="acctStatus" class="key-status hidden"></div>
+<div class="btn-row">
+<button class="btn btn-primary" onclick="acctSignIn()">Sign In</button>
+<button class="btn btn-ghost" onclick="acctSignUp()">Create Account</button>
+</div>
+</div>
+<div id="acctSignedInForm" class="hidden">
+<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:16px;">
+<div style="font-size:0.72rem;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Signed in as</div>
+<div style="font-weight:700;" id="acctSignedInEmail">—</div>
+</div>
+<div class="btn-row">
+<button class="btn btn-danger" onclick="acctSignOut()">Sign Out</button>
+<button class="btn btn-ghost" onclick="closeAccountModal()">Close</button>
+</div>
+</div>
+<div class="btn-row mt-4" id="acctCancelRow">
+<button class="btn btn-ghost btn-sm" onclick="closeAccountModal()">Cancel</button>
+</div>
+</div>
+</div>
+
+<!-- ── API KEY MODAL ── -->
+<div class="modal-overlay hidden" id="keyModal">
+<div class="modal">
+<h2>🔑 Enable AI Features (Free)</h2>
+<p>The AI-powered tools (lesson plans, quizzes, chat assistant) run on <strong>Google's free Gemini API</strong> — no credit card, no payment ever required. Everything else in TeachNest (register, behavior tracker, mail merge, reports) already works with no key at all.<br><br>
+Your key is stored only in your browser and sent directly to Google, never to us.<br><br>
+<a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent)">Get a free key at aistudio.google.com/apikey →</a></p>
+<div class="key-input-wrap" style="margin-bottom:10px;">
+<input type="password" id="apiKeyInput" placeholder="AIzaSy…" autocomplete="off">
+<button class="key-vis-btn" onclick="toggleKeyVis()">👁</button>
+</div>
+<div class="key-status" id="keyStatus"></div>
+<div class="btn-row">
+<button class="btn btn-primary" onclick="saveApiKey()">✅ Save & Connect</button>
+<button class="btn btn-ghost" onclick="closeKeyModal()">Cancel</button>
+<button class="btn btn-danger btn-sm" onclick="clearApiKey()">🗑 Clear</button>
+</div>
+</div>
+</div>
+
+<!-- ── RECORD MODAL ── -->
+<div class="modal-overlay hidden" id="recordModal">
+<div class="modal" style="max-width:520px;">
+<h2 id="recModalTitle">📝 Record Entry</h2>
+<div class="rec-form">
+<div class="field">
+<label>Quiz / Assessment Score</label>
+<div class="score-row">
+<input type="number" id="recScore" placeholder="85" min="0" max="100">
+<span class="text-muted text-sm">/ 100</span>
+<input type="text" id="recAssessName" placeholder="Assessment name" style="flex:1;">
+</div>
+</div>
+<div class="field">
+<label>Topics Covered</label>
+<div class="topics-input-row">
+<input type="text" id="recTopicInput" placeholder="e.g. Networking" onkeydown="if(event.key==='Enter'){addRecTopic();event.preventDefault();}">
+<button class="btn btn-ghost btn-sm" onclick="addRecTopic()">Add</button>
+</div>
+<div class="topics-chips" id="recTopicsChips"></div>
+</div>
+<div class="field">
+<label>Participation Note</label>
+<textarea id="recNote" rows="2" placeholder="Excellent participation, asked great questions…"></textarea>
+</div>
+<div class="btn-row">
+<button class="btn btn-primary" onclick="saveRecord()">💾 Save Record</button>
+<button class="btn btn-ghost" onclick="closeRecordModal()">Cancel</button>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ── APP SHELL ── -->
+<div class="app-shell">
+<aside>
+<div class="nav-section">AI Tools</div>
+<button class="nav-item active" onclick="nav('chat')" data-panel="chat">
+<span class="ni">💬</span><span class="n-label">Ask Assistant</span>
+</button>
+<button class="nav-item" onclick="nav('lesson')" data-panel="lesson">
+<span class="ni">📋</span><span class="n-label">Lesson Planner</span>
+</button>
+<button class="nav-item" onclick="nav('quiz')" data-panel="quiz">
+<span class="ni">✏️</span><span class="n-label">Quiz Generator</span>
+</button>
+<button class="nav-item" onclick="nav('explain')" data-panel="explain">
+<span class="ni">💡</span><span class="n-label">Explain Concept</span>
+</button>
+<div class="nav-section">Integrations</div>
+<button class="nav-item" onclick="nav('kahoot')" data-panel="kahoot">
+<span class="ni">🎮</span><span class="n-label">Kahoot Helper</span>
+</button>
+<button class="nav-item merge-item" onclick="nav('merge')" data-panel="merge">
+<span class="ni">🔀</span><span class="n-label">Mail Merge</span>
+<span class="n-badge">NEW</span>
+</button>
+<div class="nav-section">Management</div>
+<button class="nav-item" onclick="nav('students')" data-panel="students">
+<span class="ni">👥</span><span class="n-label">Student Tracker</span>
+</button>
+<button class="nav-item" onclick="nav('register')" data-panel="register">
+<span class="ni">📅</span><span class="n-label">Student Register</span>
+</button>
+<button class="nav-item" onclick="nav('behavior')" data-panel="behavior">
+<span class="ni">🚨</span><span class="n-label">Behavior Tracker</span>
+</button>
+<button class="nav-item" onclick="nav('settings')" data-panel="settings">
+<span class="ni">⚙️</span><span class="n-label">Settings</span>
+</button>
+</aside>
+
+<main>
+
+<!-- ── CHAT ── -->
+<div id="panel-chat" class="panel active">
+<div class="panel-header">
+<div class="panel-title">Ask Your Assistant</div>
+<div class="panel-sub">Instant ICT teaching support, ideas, and curriculum guidance.</div>
+</div>
+<div class="quick-chips">
+<span class="qchip" onclick="qSend('Give me 3 engaging ICT lesson starter activities')">🚀 Lesson starters</span>
+<span class="qchip" onclick="qSend('Explain the difference between hardware and software to a beginner')">💻 HW vs SW</span>
+<span class="qchip" onclick="qSend('Best practices for teaching cybersecurity to students?')">🔒 Cybersecurity</span>
+<span class="qchip" onclick="qSend('5 ICT discussion questions for students')">❓ Discussion Qs</span>
+<span class="qchip" onclick="qSend('How can I make programming fun for beginners?')">🧑‍💻 Fun coding ideas</span>
+</div>
+<div class="chat-window" id="chatWindow">
+<div class="msg ai">
+<div class="msg-av">🤖</div>
+<div class="msg-bub">Hello! I'm your ICT Teaching Assistant powered by Claude Sonnet 4.6. I can help with lesson ideas, concept explanations, quiz generation, and more. What do you need today? 📚</div>
+</div>
+</div>
+<div class="chat-input-row">
+<textarea id="chatInput" rows="2" placeholder="Ask anything about ICT teaching…" onkeydown="handleChatKey(event)"></textarea>
+<button class="btn btn-primary" id="chatSendBtn" onclick="sendChat()">Send ↑</button>
+</div>
+</div>
+
+<!-- ── LESSON ── -->
+<div id="panel-lesson" class="panel">
+<div class="panel-header">
+<div class="panel-title">Lesson Planner</div>
+<div class="panel-sub">Generate a structured ICT lesson plan in seconds.</div>
+</div>
+<div class="form-grid">
+<div class="field"><label>Topic</label><input type="text" id="lessonTopic" placeholder="e.g. Introduction to Networking"></div>
+<div class="field"><label>Grade / Level</label>
+<select id="lessonGrade">
+<option>Grade 7</option><option>Grade 8</option><option>Grade 9</option>
+<option>Grade 10</option><option>Grade 11</option><option>Grade 12</option>
+<option>Beginner</option><option>Intermediate</option><option>Advanced</option>
+</select>
+</div>
+<div class="field"><label>Duration</label>
+<select id="lessonDuration">
+<option>30 minutes</option><option>45 minutes</option><option selected>60 minutes</option><option>90 minutes</option>
+</select>
+</div>
+<div class="field"><label>Style</label>
+<select id="lessonStyle">
+<option>Lecture + Discussion</option><option>Hands-on / Practical</option>
+<option>Project-Based</option><option>Flipped Classroom</option><option>Gamified</option>
+</select>
+</div>
+<div class="field fg-full"><label>Learning Objectives (optional)</label>
+<input type="text" id="lessonObjectives" placeholder="e.g. Students will understand TCP/IP, identify network devices">
+</div>
+</div>
+<button class="btn btn-primary" id="lessonBtn" onclick="generateLesson()">✨ Generate Lesson Plan</button>
+<div id="lessonResult" class="result-box hidden"></div>
+<div class="btn-row mt-4 hidden" id="lessonActions">
+<button class="btn btn-ghost btn-sm" onclick="copyResult('lessonResult')">📋 Copy</button>
+<button class="btn btn-ghost btn-sm" onclick="sendToChat('lessonResult')">💬 Refine in Chat</button>
+<button class="btn btn-primary btn-sm" onclick="exportLessonPDF()">⬇️ Export PDF</button>
+</div>
+</div>
+
+<!-- ── QUIZ ── -->
+<div id="panel-quiz" class="panel">
+<div class="panel-header">
+<div class="panel-title">Quiz Generator</div>
+<div class="panel-sub">Create and play interactive ICT quizzes.</div>
+</div>
+<div class="form-grid">
+<div class="field"><label>Topic</label><input type="text" id="quizTopic" placeholder="e.g. Binary Numbers"></div>
+<div class="field"><label>Difficulty</label>
+<select id="quizDiff"><option>Easy</option><option selected>Medium</option><option>Hard</option></select>
+</div>
+<div class="field"><label>Questions</label>
+<select id="quizCount"><option>3</option><option selected>5</option><option>10</option></select>
+</div>
+<div class="field"><label>Format</label>
+<select id="quizFormat"><option value="interactive">Interactive (Play Now)</option><option value="text">Text Output (Print)</option></select>
+</div>
+</div>
+<button class="btn btn-primary" id="quizBtn" onclick="generateQuiz()">🎯 Generate Quiz</button>
+<div id="quizPlayArea" class="mt-6 hidden"></div>
+<div id="quizTextResult" class="result-box hidden"></div>
+</div>
+
+<!-- ── EXPLAIN ── -->
+<div id="panel-explain" class="panel">
+<div class="panel-header">
+<div class="panel-title">Explain a Concept</div>
+<div class="panel-sub">Clear, student-friendly explanations for any ICT topic.</div>
+</div>
+<div class="form-grid">
+<div class="field"><label>Concept</label><input type="text" id="explainConcept" placeholder="e.g. What is the Internet of Things?"></div>
+<div class="field"><label>Audience</label>
+<select id="explainLevel">
+<option>Complete beginner</option><option selected>Middle school student</option>
+<option>High school student</option><option>Advanced learner</option>
+</select>
+</div>
+<div class="field fg-full"><label>Explanation Style</label>
+<select id="explainStyle">
+<option>Clear and simple</option><option>With a real-world analogy</option>
+<option>Step-by-step breakdown</option><option>With examples and use cases</option>
+</select>
+</div>
+</div>
+<button class="btn btn-primary" id="explainBtn" onclick="explainConcept()">💡 Explain It</button>
+<div id="explainResult" class="result-box hidden"></div>
+<div class="btn-row mt-4 hidden" id="explainActions">
+<button class="btn btn-ghost btn-sm" onclick="copyResult('explainResult')">📋 Copy</button>
+<button class="btn btn-ghost btn-sm" onclick="sendToChat('explainResult')">💬 Continue in Chat</button>
+</div>
+</div>
+
+<!-- ── KAHOOT ── -->
+<div id="panel-kahoot" class="panel">
+<div class="panel-header">
+<div class="panel-title">Kahoot Helper</div>
+<div class="panel-sub">Generate Kahoot-ready questions or run a quick in-class quiz simulation.</div>
+</div>
+<div class="kahoot-banner">
+<h2>🎮 Kahoot Integration</h2>
+<p>Generate Kahoot-formatted question sets for ICT topics, or simulate a Kahoot-style game right here in the browser.</p>
+</div>
+<div class="form-grid">
+<div class="field"><label>Topic</label><input type="text" id="kahootTopic" placeholder="e.g. Computer Networks"></div>
+<div class="field"><label>Questions</label>
+<select id="kahootCount"><option>5</option><option selected>10</option><option>15</option></select>
+</div>
+</div>
+<div class="btn-row" style="margin-bottom:20px;">
+<button class="btn btn-primary" id="kahootGenBtn" onclick="generateKahoot()">📝 Generate Questions</button>
+<button class="btn btn-ghost" onclick="startKahootDemo()">▶️ Demo Kahoot Game</button>
+</div>
+<div id="kahootResult" class="kahoot-result hidden"></div>
+<div id="kahootDemoArea" class="mt-6 hidden"></div>
+</div>
+
+<!-- ── MAIL MERGE ── -->
+<div id="panel-merge" class="panel">
+<div class="panel-header">
+<div class="panel-title">Mail Merge</div>
+<div class="panel-sub">Merge Word document templates with Excel data — generate personalised documents at scale.</div>
+</div>
+
+<div class="merge-hero">
+<h2>🔀 Document Merge Studio</h2>
+<p>Upload a Word template, load your Excel data, place field placeholders exactly where you need them, then generate merged documents in Word or PDF format.</p>
+</div>
+
+<!-- Step indicators -->
+<div class="merge-steps">
+<div class="merge-step" id="step1-card">
+<div class="step-num">01</div>
+<div class="step-title">Word Template</div>
+<div class="step-sub">Upload or select a saved template</div>
+<div class="step-status" id="step1-status"><span class="text-muted">Waiting…</span></div>
+</div>
+<div class="merge-step" id="step2-card">
+<div class="step-num">02</div>
+<div class="step-title">Excel Data</div>
+<div class="step-sub">Upload workbook &amp; select sheet</div>
+<div class="step-status" id="step2-status"><span class="text-muted">Waiting…</span></div>
+</div>
+<div class="merge-step" id="step3-card">
+<div class="step-num">03</div>
+<div class="step-title">Place Fields &amp; Merge</div>
+<div class="step-sub">Position columns and generate</div>
+<div class="step-status" id="step3-status"><span class="text-muted">Waiting…</span></div>
+</div>
+</div>
+
+<!-- Saved templates -->
+<div class="card" style="margin-bottom:24px;" id="savedTemplatesSection">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+<div style="font-weight:700;font-size:0.92rem;">📁 Saved Templates</div>
+<button class="btn btn-ghost btn-sm" onclick="renderSavedTemplates()">🔄 Refresh</button>
+</div>
+<div id="savedTemplatesList"><span class="text-muted text-sm">No saved templates yet. Upload a Word document to get started.</span></div>
+</div>
+
+<!-- Step 1: Word upload -->
+<div class="card card-orange" style="margin-bottom:20px;">
+<div style="font-weight:700;font-size:0.92rem;margin-bottom:14px;color:var(--accent-o);">Step 1 — Word Template</div>
+<div class="upload-zone" id="wordUploadZone" onclick="document.getElementById('wordFileInput').click()">
+<input type="file" id="wordFileInput" accept=".docx" onchange="handleWordUpload(event)">
+<div class="upload-icon">📄</div>
+<div class="upload-label">Click to upload Word document (.docx)</div>
+<div class="upload-sub">Drag &amp; drop supported</div>
+<div class="upload-done hidden" id="wordFileName"></div>
+</div>
+<div class="mt-4 hidden" id="wordTemplateNameSection">
+<div class="field">
+<label>Template Name (for saving)</label>
+<div style="display:flex;gap:8px;">
+<input type="text" id="templateNameInput" placeholder="e.g. Student Report Card">
+<button class="btn btn-ghost btn-sm" onclick="saveTemplate()">💾 Save Template</button>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Step 2: Excel upload -->
+<div class="card" style="margin-bottom:20px;border-top:2px solid var(--accent);">
+<div style="font-weight:700;font-size:0.92rem;margin-bottom:14px;color:var(--accent);">Step 2 — Excel Data Source</div>
+<div class="upload-zone" id="excelUploadZone" onclick="document.getElementById('excelFileInput').click()">
+<input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" onchange="handleExcelUpload(event)">
+<div class="upload-icon">📊</div>
+<div class="upload-label">Click to upload Excel workbook (.xlsx, .xls, .csv)</div>
+<div class="upload-sub">Drag &amp; drop supported</div>
+<div class="upload-done hidden" id="excelFileName"></div>
+</div>
+<div class="hidden mt-4" id="sheetSelector">
+<div class="field">
+<label>Select Worksheet</label>
+<select id="sheetSelect" onchange="loadSheet()"></select>
+</div>
+</div>
+<div class="hidden mt-4" id="dataPreviewSection">
+<div style="font-size:0.78rem;font-weight:700;color:var(--text-2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Data Preview (first 3 rows)</div>
+<div style="overflow-x:auto;"><table class="merge-preview-table" id="dataPreviewTable"></table></div>
+</div>
+</div>
+
+<!-- Step 3: Field placement & template editor -->
+<div class="card" style="margin-bottom:20px;border-top:2px solid var(--accent-g);">
+<div style="font-weight:700;font-size:0.92rem;margin-bottom:6px;color:var(--accent-g);">Step 3 — Place Fields in Template</div>
+<div class="text-sm text-muted" style="margin-bottom:16px;">🖱️ <strong>Drag</strong> a field chip directly onto the document below and drop it exactly where you want it — or click a chip to insert it at your cursor. Placeholders look like <code style="background:var(--surface3);padding:1px 5px;border-radius:4px;font-size:0.75rem;">{{COLUMN_NAME}}</code> and get replaced with real data on merge. This is your actual uploaded Word document, shown with its real formatting — edit it freely.</div>
+
+<!-- Field palette -->
+<div style="font-size:0.72rem;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Available Fields — drag onto the document</div>
+<div class="field-palette" id="fieldPalette">
+<span class="text-muted text-sm">Load Excel data first to see fields here.</span>
+</div>
+
+<!-- Template editor -->
+<div style="font-size:0.72rem;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">Your Word Document</div>
+<div style="background:#fff;border-radius:var(--radius);border:1px solid var(--border2);overflow:hidden;">
+<div style="background:#f1f3f5;padding:8px 14px;border-bottom:1px solid #e0e0e0;display:flex;gap:8px;align-items:center;">
+<span style="font-size:0.72rem;color:#666;font-weight:600;">📄 REAL DOCUMENT — YOUR FORMATTING</span>
+<span style="font-size:0.72rem;color:#999;">— type freely, drag or click field chips above to insert placeholders</span>
+</div>
+<div id="templateEditor" contenteditable="true"
+style="min-height:220px;padding:20px 24px;color:#222;font-size:0.9rem;line-height:1.9;outline:none;font-family:Georgia,serif;"
+oninput="onTemplateEdit()"
+onkeydown="handleEditorKey(event)"
+ondragover="onEditorDragOver(event)"
+ondrop="onEditorDrop(event)"
+placeholder="Upload a Word document above, or type your template here. Drag field chips onto this document to insert {{PLACEHOLDERS}} exactly where you want them…"></div>
+</div>
+<div class="btn-row mt-4">
+<button class="btn btn-ghost btn-sm" onclick="clearTemplateEditor()">🗑 Clear Editor</button>
+<button class="btn btn-ghost btn-sm" onclick="loadWordIntoEditor()">📥 Load from Word file</button>
+</div>
+</div>
+
+<!-- Merge & Export -->
+<div class="card card-orange" style="margin-bottom:20px;">
+<div style="font-weight:700;font-size:0.92rem;margin-bottom:14px;color:var(--accent-o);">Generate Merged Documents</div>
+<div class="form-grid">
+<div class="field">
+<label>Output Format</label>
+<select id="mergeOutputFormat">
+<option value="preview">Preview in browser</option>
+<option value="docx">Word Document (.docx)</option>
+<option value="pdf">PDF (via Print)</option>
+<option value="both">Word + PDF</option>
+</select>
+</div>
+<div class="field">
+<label>Output File Name</label>
+<input type="text" id="mergeOutputName" placeholder="e.g. Student_Report">
+</div>
+</div>
+<div class="btn-row">
+<button class="btn btn-orange" id="mergeBtn" onclick="runMerge()">🔀 Run Merge</button>
+<button class="btn btn-ghost btn-sm" onclick="previewMerge()">👁 Preview First Row</button>
+</div>
+</div>
+
+<!-- Merge results -->
+<div class="hidden" id="mergeResultsSection">
+<div style="font-weight:700;font-size:0.95rem;margin-bottom:14px;">✅ Merge Complete</div>
+<div id="mergeResultsList"></div>
+</div>
+</div>
+
+<!-- ── STUDENTS ── -->
+<div id="panel-students" class="panel">
+<div class="panel-header">
+<div class="panel-title">Student Tracker</div>
+<div class="panel-sub">Track quiz scores, topics covered, and notes for each student.</div>
+</div>
+<div class="summary-grid" id="trackerSummary"></div>
+
+<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:24px;align-items:flex-start;">
+<div style="flex:1;min-width:200px;">
+<div style="font-size:0.72rem;color:var(--text-2);font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Add Student</div>
+<div style="display:flex;gap:8px;">
+<input type="text" id="newStudentName" placeholder="Student name…" style="flex:1;">
+<button class="btn btn-primary btn-sm" onclick="addStudent()">+ Add</button>
+</div>
+</div>
+<div style="flex:1;min-width:220px;">
+<div class="bulk-area">
+<label>Bulk Import (one name per line)</label>
+<textarea id="bulkNames" rows="2" placeholder="Alice&#10;Bob&#10;Charlie"></textarea>
+<button class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%;" onclick="bulkImport()">📋 Import Class List</button>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;">
+<button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇️ Export CSV</button>
+<button class="btn btn-primary btn-sm" onclick="exportProgressReport()">📄 Progress Report PDF</button>
+</div>
+</div>
+
+<div class="students-grid" id="classList"></div>
+<div id="emptyState" class="hidden" style="text-align:center;padding:40px;color:var(--text-2);">
+<div style="font-size:2.5rem;margin-bottom:12px;">👥</div>
+<div style="font-weight:700;">No students yet</div>
+<div class="text-sm mt-2">Add students above to start tracking</div>
+</div>
+</div>
+
+<!-- ── STUDENT REGISTER ── -->
+<div id="panel-register" class="panel">
+<div class="panel-header">
+<div class="panel-title">Student Register</div>
+<div class="panel-sub">Take daily attendance Monday–Friday. Click a cell to cycle Present → Absent → Late → Excused.</div>
+</div>
+
+<div class="summary-grid" id="regSummary"></div>
+
+<div class="week-nav">
+<button class="btn btn-ghost btn-sm" onclick="regShiftWeek(-1)">◀ Prev Week</button>
+<div class="week-label" id="regWeekLabel">—</div>
+<button class="btn btn-ghost btn-sm" onclick="regShiftWeek(1)">Next Week ▶</button>
+<button class="btn btn-ghost btn-sm" onclick="regGoToday()">📍 This Week</button>
+<div style="flex:1"></div>
+<div class="share-menu">
+<button class="btn btn-primary btn-sm" onclick="toggleShareMenu('regShareDD')">📤 Share / Export</button>
+<div class="share-dropdown" id="regShareDD">
+<button onclick="emailRegister()">✉️ Email Register</button>
+<button onclick="shareRegisterFile()">📱 Share File…</button>
+<button onclick="exportRegisterCSV()">⬇️ Download CSV</button>
+<button onclick="exportRegisterXLSX()">⬇️ Download Excel</button>
+<button onclick="exportRegisterDOCX()">⬇️ Download Word</button>
+<button onclick="exportRegisterPDF()">⬇️ Download PDF</button>
+</div>
+</div>
+</div>
+
+<div class="legend-row">
+<span class="legend-dot"><span class="dot" style="background:var(--accent-g)"></span> Present</span>
+<span class="legend-dot"><span class="dot" style="background:var(--danger)"></span> Absent</span>
+<span class="legend-dot"><span class="dot" style="background:var(--warn)"></span> Late</span>
+<span class="legend-dot"><span class="dot" style="background:var(--accent)"></span> Excused</span>
+<span style="margin-left:auto;color:var(--text-3)">Tip: add students first in the Student Tracker tab — the register uses the same class list.</span>
+</div>
+
+<div class="reg-table-wrap">
+<table class="reg-table" id="regTable"></table>
+</div>
+<div id="regEmptyState" class="hidden" style="text-align:center;padding:40px;color:var(--text-2);">
+<div style="font-size:2.5rem;margin-bottom:12px;">📅</div>
+<div style="font-weight:700;">No students yet</div>
+<div class="text-sm mt-2">Add students in the Student Tracker tab to start taking attendance</div>
+</div>
+</div>
+
+<!-- ── BEHAVIOR / DISCIPLINE TRACKER ── -->
+<div id="panel-behavior" class="panel">
+<div class="panel-header">
+<div class="panel-title">Behavior &amp; Discipline Tracker</div>
+<div class="panel-sub">Log student incidents, track patterns, and share reports instantly.</div>
+</div>
+
+<div class="summary-grid" id="behSummary"></div>
+
+<div class="incident-toolbar">
+<div class="field" style="flex:2;min-width:220px;">
+<label>Student Name</label>
+<input type="text" id="incStudent" list="incStudentList" placeholder="Type or pick a name…">
+<datalist id="incStudentList"></datalist>
+</div>
+<div class="field">
+<label>Category</label>
+<select id="incCategory">
+<option>Disruption</option>
+<option>Late to Class</option>
+<option>Uniform / Dress Code</option>
+<option>Homework Not Done</option>
+<option>Disrespect</option>
+<option>Bullying</option>
+<option>Fighting</option>
+<option>Phone / Device Misuse</option>
+<option>Property Damage</option>
+<option>Other</option>
+</select>
+</div>
+<div class="field">
+<label>Severity</label>
+<select id="incSeverity">
+<option value="Low">🟢 Low</option>
+<option value="Medium" selected>🟡 Medium</option>
+<option value="High">🔴 High</option>
+</select>
+</div>
+<div class="field">
+<label>Date</label>
+<input type="date" id="incDate">
+</div>
+<button class="btn btn-primary" onclick="addIncident()" style="height:42px;">＋ Log Incident</button>
+</div>
+<div class="form-grid" style="margin-bottom:10px;">
+<div class="field fg-full">
+<label>What happened?</label>
+<textarea id="incDesc" rows="2" placeholder="Describe the incident briefly and factually…"></textarea>
+</div>
+<div class="field fg-full">
+<label>Action Taken (optional)</label>
+<input type="text" id="incAction" placeholder="e.g. Verbal warning, parent contacted, sent to HOD…">
+</div>
+</div>
+
+<div class="incident-toolbar" style="margin-top:4px;">
+<div class="field">
+<label>Filter by Student</label>
+<select id="behFilterStudent" onchange="renderIncidents()"><option value="">All Students</option></select>
+</div>
+<div class="field">
+<label>Filter by Severity</label>
+<select id="behFilterSeverity" onchange="renderIncidents()">
+<option value="">All Severities</option>
+<option value="Low">Low</option>
+<option value="Medium">Medium</option>
+<option value="High">High</option>
+</select>
+</div>
+<div style="flex:1"></div>
+<div class="share-menu">
+<button class="btn btn-primary btn-sm" onclick="toggleShareMenu('behShareDD')">📤 Share / Export</button>
+<div class="share-dropdown" id="behShareDD">
+<button onclick="emailIncidents()">✉️ Email Report</button>
+<button onclick="shareIncidentsFile()">📱 Share File…</button>
+<button onclick="exportIncidentsCSV()">⬇️ Download CSV</button>
+<button onclick="exportIncidentsXLSX()">⬇️ Download Excel</button>
+<button onclick="exportIncidentsDOCX()">⬇️ Download Word</button>
+<button onclick="exportIncidentsPDF()">⬇️ Download PDF</button>
+</div>
+</div>
+</div>
+
+<div class="incident-list" id="incidentList"></div>
+<div id="behEmptyState" class="hidden" style="text-align:center;padding:40px;color:var(--text-2);">
+<div style="font-size:2.5rem;margin-bottom:12px;">🚨</div>
+<div style="font-weight:700;">No incidents logged</div>
+<div class="text-sm mt-2">Use the form above to record your first incident</div>
+</div>
+</div>
+
+<!-- ── SETTINGS ── -->
+<div id="panel-settings" class="panel">
+<div class="panel-header">
+<div class="panel-title">Settings</div>
+<div class="panel-sub">Customise school branding and application preferences.</div>
+</div>
+<div style="max-width:600px;">
+<div class="settings-section">
+<h3>🏫 School Branding</h3>
+<div class="form-grid">
+<div class="field fg-full"><label>School Name</label><input type="text" id="settingSchoolName" placeholder="e.g. Greenwood High School"></div>
+<div class="field fg-full"><label>Teacher Name</label><input type="text" id="settingTeacherName" placeholder="e.g. Mr. Smith"></div>
+<div class="field"><label>Subject / Class</label><input type="text" id="settingSubject" placeholder="e.g. ICT Grade 10"></div>
+<div class="field">
+<label>School Accent Colour</label>
+<div style="display:flex;gap:10px;align-items:center;">
+<input type="color" id="settingColor" value="#4f8ef7" style="width:48px;height:38px;padding:2px;border-radius:8px;cursor:pointer;border:1px solid var(--border);background:var(--surface2);">
+<span class="text-sm text-muted">Used in PDF exports</span>
+</div>
+</div>
+<div class="field fg-full"><label>School Motto / Tagline</label><input type="text" id="settingMotto" placeholder="e.g. Excellence in Education"></div>
+</div>
+<div class="brand-preview" id="brandPreview">
+<div id="previewContent" class="text-muted text-sm">Fill in your details above to see a preview.</div>
+</div>
+</div>
+<div class="divider"></div>
+<div class="settings-section">
+<h3>☁️ Account &amp; Cloud Sync</h3>
+<div class="text-sm text-muted" style="margin-bottom:12px;">Connect a free Firebase project so teachers can sign in with their email and pick up their data on any device. Create one free at <strong>console.firebase.google.com</strong> (no credit card needed), enable <strong>Email/Password</strong> sign-in under Authentication, create a <strong>Firestore database</strong>, then paste the web app config below. This is safe, public config — not a secret key.</div>
+<div class="form-grid">
+<div class="field fg-full"><label>API Key</label><input type="text" id="fbApiKey" placeholder="AIzaSy…"></div>
+<div class="field"><label>Auth Domain</label><input type="text" id="fbAuthDomain" placeholder="yourapp.firebaseapp.com"></div>
+<div class="field"><label>Project ID</label><input type="text" id="fbProjectId" placeholder="yourapp"></div>
+<div class="field"><label>Storage Bucket</label><input type="text" id="fbStorageBucket" placeholder="yourapp.appspot.com"></div>
+<div class="field"><label>Messaging Sender ID</label><input type="text" id="fbSenderId" placeholder="1234567890"></div>
+<div class="field"><label>App ID</label><input type="text" id="fbAppId" placeholder="1:1234567890:web:abc123"></div>
+</div>
+<div id="fbConfigStatus" class="key-status hidden"></div>
+<div class="btn-row">
+<button class="btn btn-primary btn-sm" onclick="saveFirebaseConfig()">💾 Save &amp; Connect</button>
+<button class="btn btn-ghost btn-sm" onclick="openAccountModal()">👤 Account</button>
+</div>
+<div class="text-sm text-muted mt-2" id="fbCurrentStatus"></div>
+</div>
+<div class="divider"></div>
+<div class="settings-section">
+<h3>🔑 AI Features (Optional, Free)</h3>
+<div class="text-sm text-muted" style="margin-bottom:12px;">TeachNest works fully without this — register, behavior tracker, mail merge, and reports don't need it. Only the AI tools (lesson plans, quiz generator, chat assistant) need a free Google AI key. It's stored locally in your browser and persists between sessions.</div>
+<button class="btn btn-ghost btn-sm" onclick="openKeyModal()">Configure API Key</button>
+</div>
+<div class="btn-row mt-4">
+<button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+<span id="settingsSaved" class="hidden text-sm" style="color:var(--accent-g);align-self:center;">✅ Saved!</span>
+</div>
+</div>
+</div>
+
+</main>
+</div>
+
+<!-- status toast -->
+<div class="status-toast hidden" id="statusToast"></div>
+
+<!-- print area -->
+<div id="print-area" style="display:none;"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════
+const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
+const MODEL = "gemini-2.0-flash"; // Google's free-tier model — no credit card needed
+
+// ═══════════════════════════════════════════════════════════════
+// FIREBASE — free-tier cloud accounts & cross-device sync
+// ─ Fill this in once with your own free Firebase project's config
+// ─ (Firebase Console → Project Settings → General → Your apps → Web app)
+// ─ This is a PUBLIC config, not a secret — safe to leave in the file.
+// ─ Teachers can also paste it in Settings → Account & Cloud Sync,
+// ─ which overrides this for testing before you edit the source.
+// ═══════════════════════════════════════════════════════════════
+let FIREBASE_CONFIG = {
+apiKey: "",
+authDomain: "",
+projectId: "",
+storageBucket: "",
+messagingSenderId: "",
+appId: ""
+};
+const storedFbConfig = localStorage.getItem('cp_firebase_config');
+if (storedFbConfig) { try { FIREBASE_CONFIG = { ...FIREBASE_CONFIG, ...JSON.parse(storedFbConfig) }; } catch(e){} }
+
+let fbApp = null, fbAuth = null, fbDb = null, currentUser = null;
+
+function firebaseReady() { return !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId); }
+
+function initFirebase() {
+if (!firebaseReady()) { updateAccountPill(); return; }
+try {
+if (!fbApp) fbApp = firebase.initializeApp(FIREBASE_CONFIG);
+fbAuth = firebase.auth();
+fbDb = firebase.firestore();
+fbAuth.onAuthStateChanged(user => {
+currentUser = user;
+updateAccountPill();
+renderAccountModalState();
+if (user) { toast('☁️ Signed in as ' + user.email, 'ok'); cloudPullAll(); }
+});
+} catch(e) { console.error('Firebase init error', e); toast('⚠️ Cloud sync config looks invalid — check Settings.', 'err'); }
+}
+
+function updateAccountPill() {
+const dot = document.getElementById('accountDot');
+const lbl = document.getElementById('accountLabel');
+if (!dot || !lbl) return;
+if (!firebaseReady()) { dot.className = 'status-dot'; lbl.textContent = 'Local only'; return; }
+if (currentUser) { dot.className = 'status-dot live'; lbl.textContent = currentUser.email.split('@')[0]; }
+else { dot.className = 'status-dot'; lbl.textContent = 'Sign in'; }
+}
+
+function openAccountModal() {
+document.getElementById('accountModal').classList.remove('hidden');
+document.getElementById('acctNoFirebase').classList.toggle('hidden', firebaseReady());
+renderAccountModalState();
+}
+function closeAccountModal() { document.getElementById('accountModal').classList.add('hidden'); }
+function renderAccountModalState() {
+const signedOut = document.getElementById('acctSignedOutForm');
+const signedIn = document.getElementById('acctSignedInForm');
+if (currentUser) {
+signedOut.classList.add('hidden'); signedIn.classList.remove('hidden');
+document.getElementById('acctSignedInEmail').textContent = currentUser.email;
+document.getElementById('acctModalTitle').textContent = '👤 Your TeachNest Account';
+document.getElementById('acctModalSub').textContent = 'Your data syncs automatically on every device you sign in from.';
+} else {
+signedOut.classList.remove('hidden'); signedIn.classList.add('hidden');
+document.getElementById('acctModalTitle').textContent = '👤 Sign in to TeachNest';
+document.getElementById('acctModalSub').textContent = 'Sign in to sync your students, register, and incidents across every device you log in from.';
+}
+}
+function acctSetStatus(msg, type) {
+const el = document.getElementById('acctStatus');
+el.textContent = msg; el.className = 'key-status ' + type;
+el.classList.remove('hidden');
+}
+async function acctSignUp() {
+if (!firebaseReady()) { acctSetStatus('Cloud sync is not configured yet — set it up in Settings first.', 'err'); return; }
+const email = document.getElementById('acctEmail').value.trim();
+const pass = document.getElementById('acctPassword').value;
+if (!email || pass.length < 6) { acctSetStatus('Enter a valid email and a password of 6+ characters.', 'err'); return; }
+try {
+await fbAuth.createUserWithEmailAndPassword(email, pass);
+acctSetStatus('✅ Account created — you are now signed in.', 'ok');
+} catch(e) { acctSetStatus('❌ ' + e.message, 'err'); }
+}
+async function acctSignIn() {
+if (!firebaseReady()) { acctSetStatus('Cloud sync is not configured yet — set it up in Settings first.', 'err'); return; }
+const email = document.getElementById('acctEmail').value.trim();
+const pass = document.getElementById('acctPassword').value;
+if (!email || !pass) { acctSetStatus('Enter your email and password.', 'err'); return; }
+try {
+await fbAuth.signInWithEmailAndPassword(email, pass);
+acctSetStatus('✅ Signed in.', 'ok');
+} catch(e) { acctSetStatus('❌ ' + e.message, 'err'); }
+}
+async function acctSignOut() {
+try { await fbAuth.signOut(); toast('Signed out — your data stays saved locally on this device.', 'info'); closeAccountModal(); }
+catch(e) { toast('❌ ' + e.message, 'err'); }
+}
+
+// ── Cloud read/write for each data key ──
+const CLOUD_KEYS = { students:'ict_students', register:'ict_register', incidents:'ict_incidents', settings:'ict_settings', lessons:'ict_lessons', merge_templates:'ict_merge_templates' };
+
+function cloudSync(key, data) {
+localStorage.setItem(CLOUD_KEYS[key], JSON.stringify(data));
+if (!currentUser || !fbDb) return;
+fbDb.collection('users').doc(currentUser.uid).collection('data').doc(key)
+.set({ value: data, updatedAt: Date.now() })
+.catch(e => { console.error('cloud sync error', e); toast('⚠️ Cloud sync failed — saved locally', 'err'); });
+}
+
+async function cloudPullAll() {
+if (!currentUser || !fbDb) return;
+toast('☁️ Loading your data…', 'info', 2500);
+try {
+const snap = await fbDb.collection('users').doc(currentUser.uid).collection('data').get();
+if (snap.empty) { toast('☁️ New account — starting fresh. Your work will sync from now on.', 'info', 4000); return; }
+snap.forEach(doc => {
+const key = doc.id, val = doc.data().value;
+if (val === undefined) return;
+localStorage.setItem(CLOUD_KEYS[key] || ('ict_'+key), JSON.stringify(val));
+if (key === 'students') students = val;
+if (key === 'register') registerData = val;
+if (key === 'incidents') incidents = val;
+if (key === 'settings') schoolSettings = val;
+if (key === 'lessons') savedLessons = val;
+if (key === 'merge_templates') mergeTemplates = val;
+});
+renderStudents(); loadSettings(); renderRegister(); renderIncidents(); renderSavedTemplates();
+toast('✅ Your data is up to date', 'ok');
+} catch(e) { console.error(e); toast('⚠️ Could not reach the cloud — showing local data', 'err'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// API KEY — persisted in localStorage (survives browser sessions)
+// ═══════════════════════════════════════════════════════════════
+let API_KEY = localStorage.getItem('ict_api_key') || '';
+
+function updateApiIndicator() {
+const dot = document.getElementById('statusDot');
+const lbl = document.getElementById('statusLabel');
+if (API_KEY) {
+dot.className = 'status-dot live';
+lbl.textContent = 'AI Connected · Free tier';
+} else {
+dot.className = 'status-dot error';
+lbl.textContent = 'AI features off — Click to enable (free)';
+}
+}
+
+function openKeyModal() {
+document.getElementById('keyModal').classList.remove('hidden');
+document.getElementById('apiKeyInput').value = API_KEY;
+document.getElementById('keyStatus').className = 'key-status';
+}
+function closeKeyModal() { document.getElementById('keyModal').classList.add('hidden'); }
+function toggleKeyVis() {
+const i = document.getElementById('apiKeyInput');
+i.type = i.type === 'password' ? 'text' : 'password';
+}
+
+async function saveApiKey() {
+const val = document.getElementById('apiKeyInput').value.trim();
+const stat = document.getElementById('keyStatus');
+if (!val) {
+stat.className = 'key-status err';
+stat.textContent = '⚠️ Paste your free Google AI key first.';
+return;
+}
+stat.className = 'key-status info'; stat.textContent = '⏳ Verifying key with Google AI…';
+try {
+const res = await fetch(`${API_URL}${MODEL}:generateContent?key=${encodeURIComponent(val)}`, {
+method: 'POST',
+headers: { 'Content-Type':'application/json' },
+body: JSON.stringify({ contents:[{ parts:[{ text:'Hi' }] }] })
+});
+const data = await res.json();
+if (data.error) throw new Error(data.error.message);
+API_KEY = val;
+localStorage.setItem('ict_api_key', val);
+stat.className = 'key-status ok'; stat.textContent = '✅ Key verified and saved! AI features are ready — free of charge.';
+updateApiIndicator();
+setTimeout(closeKeyModal, 1400);
+} catch(e) {
+stat.className = 'key-status err'; stat.textContent = '❌ ' + (e.message || 'Verification failed. Check your key.');
+}
+}
+
+function clearApiKey() {
+API_KEY = ''; localStorage.removeItem('ict_api_key');
+document.getElementById('apiKeyInput').value = '';
+document.getElementById('keyStatus').className = 'key-status';
+updateApiIndicator(); closeKeyModal();
+}
+
+document.getElementById('keyModal').addEventListener('click', e => { if(e.target === e.currentTarget) closeKeyModal(); });
+document.getElementById('accountModal').addEventListener('click', e => { if(e.target === e.currentTarget) closeAccountModal(); });
+
+// AI features are optional — the app is fully usable without a key.
+// We do NOT auto-prompt on load anymore; teachers can enable AI whenever they want.
+updateApiIndicator();
+
+// ═══════════════════════════════════════════════════════════════
+// CORE AI CALL — Google Gemini free tier (no paid key required)
+// ═══════════════════════════════════════════════════════════════
+async function callClaude(systemPrompt, userPrompt) {
+if (!API_KEY) { openKeyModal(); throw new Error('Add a free Google AI key to use AI features — no credit card needed.'); }
+const res = await fetch(`${API_URL}${MODEL}:generateContent?key=${encodeURIComponent(API_KEY)}`, {
+method: 'POST',
+headers: { 'Content-Type':'application/json' },
+body: JSON.stringify({
+systemInstruction: { parts:[{ text: systemPrompt }] },
+contents: [{ parts:[{ text: userPrompt }] }],
+generationConfig: { maxOutputTokens: 2048 }
+})
+});
+const data = await res.json();
+if (data.error) throw new Error(data.error.message);
+const cand = data.candidates && data.candidates[0];
+if (!cand) throw new Error('No response from AI — try again.');
+if (cand.finishReason === 'SAFETY') throw new Error('Response blocked by safety filters — try rephrasing.');
+return (cand.content?.parts || []).map(p => p.text || '').join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+function nav(id) {
+document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+document.getElementById('panel-' + id).classList.add('active');
+document.querySelector(`.nav-item[data-panel="${id}"]`)?.classList.add('active');
+if (id === 'students') renderStudents();
+if (id === 'settings') loadSettings();
+if (id === 'merge') renderSavedTemplates();
+if (id === 'register') renderRegister();
+if (id === 'behavior') renderIncidents();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════
+let toastTimer;
+function toast(msg, type = 'info', duration = 3000) {
+const el = document.getElementById('statusToast');
+el.textContent = msg; el.className = `status-toast ${type}`;
+clearTimeout(toastTimer);
+toastTimer = setTimeout(() => el.classList.add('hidden'), duration);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════
+function esc(str) {
+return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escA(str) { return String(str).replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+
+// ═══════════════════════════════════════════════════════════════
+// CHAT
+// ═══════════════════════════════════════════════════════════════
+let chatHistory = [];
+function handleChatKey(e) { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendChat(); } }
+function qSend(t) { document.getElementById('chatInput').value = t; sendChat(); }
+
+async function sendChat() {
+const inp = document.getElementById('chatInput');
+const msg = inp.value.trim();
+if (!msg) return;
+inp.value = '';
+appendMsg('user', msg);
+chatHistory.push({ role:'user', content: msg });
+const tid = appendTyping();
+document.getElementById('chatSendBtn').disabled = true;
+try {
+const sys = `You are an expert ICT teacher assistant. Help with lesson planning, explaining concepts, quiz ideas, student engagement, and curriculum guidance. Be concise, practical and enthusiastic. Format responses clearly.`;
+const ctx = chatHistory.map(m => m.role + ': ' + m.content).join('\n');
+const reply = await callClaude(sys, ctx);
+removeTyping(tid); appendMsg('ai', reply);
+chatHistory.push({ role:'assistant', content: reply });
+} catch(e) {
+removeTyping(tid); appendMsg('ai', '⚠️ ' + e.message);
+}
+document.getElementById('chatSendBtn').disabled = false;
+}
+
+function appendMsg(role, text) {
+const w = document.getElementById('chatWindow');
+const d = document.createElement('div');
+d.className = 'msg ' + role;
+d.innerHTML = `<div class="msg-av">${role==='ai'?'🤖':'👤'}</div><div class="msg-bub">${esc(text)}</div>`;
+w.appendChild(d); w.scrollTop = w.scrollHeight;
+}
+function appendTyping() {
+const w = document.getElementById('chatWindow');
+const id = 'typ-' + Date.now();
+w.innerHTML += `<div class="msg ai" id="${id}"><div class="msg-av">🤖</div><div class="msg-bub"><div class="typing"><span></span><span></span><span></span></div></div></div>`;
+w.scrollTop = w.scrollHeight; return id;
+}
+function removeTyping(id) { document.getElementById(id)?.remove(); }
+
+// ═══════════════════════════════════════════════════════════════
+// LESSON PLAN
+// ═══════════════════════════════════════════════════════════════
+let savedLessons = JSON.parse(localStorage.getItem('ict_lessons') || '[]');
+
+async function generateLesson() {
+const topic = document.getElementById('lessonTopic').value.trim() || 'Introduction to Computers';
+const grade = document.getElementById('lessonGrade').value;
+const dur = document.getElementById('lessonDuration').value;
+const style = document.getElementById('lessonStyle').value;
+const obj = document.getElementById('lessonObjectives').value.trim();
+const btn = document.getElementById('lessonBtn');
+const box = document.getElementById('lessonResult');
+btn.disabled = true; btn.textContent = '⏳ Generating…';
+box.classList.remove('hidden'); box.className = 'result-box loading'; box.textContent = 'Creating your lesson plan…';
+try {
+const r = await callClaude(
+`You are an expert ICT curriculum designer. Generate detailed, practical lesson plans teachers can use immediately.`,
+`Create a detailed ICT lesson plan:\nTopic: ${topic}\nGrade: ${grade}\nDuration: ${dur}\nStyle: ${style}\n${obj?'Objectives: '+obj:''}\nInclude: Learning Objectives, Materials, Lesson Structure (with timing), Key Activities, Assessment, Homework/Extension.`
+);
+box.className = 'result-box'; box.textContent = r;
+document.getElementById('lessonActions').classList.remove('hidden');
+savedLessons.push({ date: new Date().toLocaleDateString(), topic, grade, duration: dur, style, content: r });
+localStorage.setItem('ict_lessons', JSON.stringify(savedLessons));
+cloudSync('lessons', savedLessons);
+} catch(e) { box.className = 'result-box'; box.textContent = '⚠️ ' + e.message; }
+btn.disabled = false; btn.textContent = '✨ Generate Lesson Plan';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// QUIZ
+// ═══════════════════════════════════════════════════════════════
+let quizData = [], quizIdx = 0, quizScore = 0;
+
+async function generateQuiz() {
+const topic = document.getElementById('quizTopic').value.trim() || 'Computer Basics';
+const diff = document.getElementById('quizDiff').value;
+const count = document.getElementById('quizCount').value;
+const format = document.getElementById('quizFormat').value;
+const btn = document.getElementById('quizBtn');
+btn.disabled = true; btn.textContent = '⏳ Generating…';
+try {
+const raw = await callClaude(
+`You are an ICT quiz generator. Always respond with ONLY valid JSON, no extra text.`,
+`Generate ${count} multiple choice ICT quiz questions about "${topic}" at ${diff} difficulty.\nReturn ONLY a JSON array:\n[{"question":"…","options":["A) …","B) …","C) …","D) …"],"answer":"A","explanation":"…"}]`
+);
+const clean = raw.replace(/```json|```/g,'').trim();
+quizData = JSON.parse(clean); quizIdx = 0; quizScore = 0;
+if (format === 'interactive') {
+document.getElementById('quizTextResult').classList.add('hidden');
+document.getElementById('quizPlayArea').classList.remove('hidden');
+renderQuestion();
+} else {
+document.getElementById('quizPlayArea').classList.add('hidden');
+const tb = document.getElementById('quizTextResult');
+tb.classList.remove('hidden');
+tb.textContent = quizData.map((q,i) => `Q${i+1}: ${q.question}\n${q.options.join('\n')}\nAnswer: ${q.answer}\n`).join('\n');
+}
+} catch(e) { alert('Quiz error: ' + e.message); }
+btn.disabled = false; btn.textContent = '🎯 Generate Quiz';
+}
+
+function renderQuestion() {
+const a = document.getElementById('quizPlayArea');
+if (quizIdx >= quizData.length) {
+a.innerHTML = `<div class="quiz-card"><div class="score-pill">🏆 Score: ${quizScore}/${quizData.length}</div>
+<div class="text-muted text-sm" style="margin-bottom:14px;">${quizScore===quizData.length?'Perfect! 🎉':quizScore>=quizData.length/2?'Good job! 👍':'Keep practising! 💪'}</div>
+<button class="btn btn-primary btn-sm" onclick="quizIdx=0;quizScore=0;renderQuestion()">🔄 Retry</button></div>`;
+return;
+}
+const q = quizData[quizIdx];
+a.innerHTML = `<div class="score-pill">Score: ${quizScore}/${quizData.length}</div>
+<div class="quiz-card">
+<div class="quiz-qnum">Question ${quizIdx+1} of ${quizData.length}</div>
+<div class="quiz-qtext">${esc(q.question)}</div>
+<div class="quiz-opts">${q.options.map((o,i)=>`<button class="quiz-opt" onclick="checkAnswer(this,'${escA(q.answer)}','${escA(q.explanation)}',${i})">${esc(o)}</button>`).join('')}</div>
+</div>`;
+}
+
+function checkAnswer(btn, ans, expl, idx) {
+const opts = btn.parentElement.querySelectorAll('.quiz-opt');
+opts.forEach(o => o.disabled = true);
+const letters = ['A','B','C','D'];
+if (letters[idx] === ans) { btn.classList.add('correct'); quizScore++; }
+else { btn.classList.add('wrong'); opts.forEach((o,i)=>{ if(letters[i]===ans) o.classList.add('correct'); }); }
+btn.closest('.quiz-card').innerHTML += `<div style="margin-top:12px;padding:10px 14px;background:var(--surface2);border-radius:9px;font-size:0.82rem;color:var(--text-2);">💡 ${esc(expl)}</div>
+<button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="quizIdx++;renderQuestion()">Next →</button>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EXPLAIN
+// ═══════════════════════════════════════════════════════════════
+async function explainConcept() {
+const concept = document.getElementById('explainConcept').value.trim() || 'Operating System';
+const level = document.getElementById('explainLevel').value;
+const style = document.getElementById('explainStyle').value;
+const btn = document.getElementById('explainBtn');
+const box = document.getElementById('explainResult');
+btn.disabled = true; btn.textContent = '⏳ Explaining…';
+box.classList.remove('hidden'); box.className = 'result-box loading'; box.textContent = 'Preparing explanation…';
+try {
+const r = await callClaude(`You are an expert ICT teacher. Explain concepts clearly and engagingly for the specified audience.`,
+`Explain: "${concept}"\nAudience: ${level}\nStyle: ${style}\nKeep it engaging, accurate, practical. Include a real-world example.`);
+box.className = 'result-box'; box.textContent = r;
+document.getElementById('explainActions').classList.remove('hidden');
+} catch(e) { box.className = 'result-box'; box.textContent = '⚠️ ' + e.message; }
+btn.disabled = false; btn.textContent = '💡 Explain It';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// KAHOOT
+// ═══════════════════════════════════════════════════════════════
+async function generateKahoot() {
+const topic = document.getElementById('kahootTopic').value.trim() || 'Computer Networks';
+const count = document.getElementById('kahootCount').value;
+const btn = document.getElementById('kahootGenBtn');
+const box = document.getElementById('kahootResult');
+btn.disabled = true; btn.textContent = '⏳ Generating…';
+box.classList.remove('hidden'); box.textContent = 'Generating Kahoot questions…';
+try {
+const r = await callClaude(`You are a Kahoot quiz creator for ICT education.`,
+`Generate ${count} Kahoot-style ICT questions about "${topic}".\nFormat each as:\nQ[N]: [Question]\n✅ [Correct Answer]\n❌ [Wrong 1]\n❌ [Wrong 2]\n❌ [Wrong 3]\n⏱ Suggested time: [20/30/60] seconds\n---`);
+box.textContent = r;
+} catch(e) { box.textContent = '⚠️ ' + e.message; }
+btn.disabled = false; btn.textContent = '📝 Generate Questions';
+}
+
+const demoQs = [
+{ q:"What does CPU stand for?", opts:["Central Processing Unit","Computer Personal Unit","Central Program Utility","Core Processing Unit"], ans:0 },
+{ q:"Which is an input device?", opts:["Monitor","Printer","Keyboard","Speaker"], ans:2 },
+{ q:"Main purpose of RAM?", opts:["Store files permanently","Temporary memory for running programs","Connect to the internet","Display images"], ans:1 },
+{ q:"What does HTTP stand for?", opts:["High Transfer Text Protocol","HyperText Transfer Protocol","Hyper Tool Transfer Program","Host Transfer Technology"], ans:1 },
+];
+let demoIdx2=0, demoTimer, demoLeft=20;
+const kColors = ['k-red','k-blue','k-yellow','k-green'];
+
+function startKahootDemo() {
+demoIdx2=0;
+const a = document.getElementById('kahootDemoArea');
+a.classList.remove('hidden'); a.scrollIntoView({ behavior:'smooth' });
+showDemoQ();
+}
+function showDemoQ() {
+if (demoIdx2 >= demoQs.length) {
+document.getElementById('kahootDemoArea').innerHTML = `<div class="kahoot-q-display"><h3>🎉 Game Over! Great job!</h3></div><button class="btn btn-primary btn-sm" onclick="startKahootDemo()">🔄 Play Again</button>`;
+return;
+}
+const q = demoQs[demoIdx2]; demoLeft = 20; clearInterval(demoTimer);
+document.getElementById('kahootDemoArea').innerHTML = `
+<div class="kahoot-q-display">
+<div style="font-size:0.72rem;opacity:.7;margin-bottom:6px;">Question ${demoIdx2+1} of ${demoQs.length}</div>
+<h3 style="font-size:1.1rem;font-weight:700;">${esc(q.q)}</h3>
+</div>
+<div class="kahoot-timer" id="demoTimer">${demoLeft}</div>
+<div class="kahoot-grid">
+${q.opts.map((o,i)=>`<button class="kbtn ${kColors[i]}" onclick="checkDemo(${i},${q.ans})"><span>${['🔺','🔷','⭕','⬛'][i]}</span>${esc(o)}</button>`).join('')}
+</div>`;
+demoTimer = setInterval(()=>{
+demoLeft--; const el=document.getElementById('demoTimer'); if(el) el.textContent=demoLeft;
+if(demoLeft<=0){ clearInterval(demoTimer); showDemoAns(-1,q.ans); }
+},1000);
+}
+function checkDemo(chosen,correct){ clearInterval(demoTimer); showDemoAns(chosen,correct); }
+function showDemoAns(chosen,correct) {
+const a = document.getElementById('kahootDemoArea');
+const r = chosen===correct?'✅ Correct!':chosen===-1?'⏰ Time\'s up!':'❌ Wrong!';
+const c = chosen===correct?'var(--accent-g)':'var(--danger)';
+a.innerHTML += `<div style="text-align:center;padding:16px;font-size:1.3rem;font-weight:800;color:${c}">${r}</div>
+<div style="text-align:center;"><button class="btn btn-primary btn-sm" onclick="demoIdx2++;showDemoQ()">Next ▶</button></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// MAIL MERGE
+// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+
+let mmWordContent = ''; // original word text
+let mmWordFileName = '';
+let mmExcelData = []; // array of row objects
+let mmSheetNames = [];
+let mmWorkbook = null;
+let mmColumns = [];
+let mergeTemplates = JSON.parse(localStorage.getItem('ict_merge_templates') || '[]');
+let selectedTemplateIdx = -1;
+
+// ── Drag & drop setup ──
+function setupDrop(zoneId, handler) {
+const z = document.getElementById(zoneId);
+z.addEventListener('dragover', e => { e.preventDefault(); z.classList.add('dragover'); });
+z.addEventListener('dragleave', () => z.classList.remove('dragover'));
+z.addEventListener('drop', e => { e.preventDefault(); z.classList.remove('dragover'); if(e.dataTransfer.files[0]) handler({ target:{ files: e.dataTransfer.files } }); });
+}
+setupDrop('wordUploadZone', handleWordUpload);
+setupDrop('excelUploadZone', handleExcelUpload);
+
+// ── Word upload ──
+async function handleWordUpload(event) {
+const file = event.target.files[0];
+if (!file) return;
+mmWordFileName = file.name;
+const lbl = document.getElementById('wordFileName');
+lbl.classList.remove('hidden'); lbl.textContent = '📄 ' + file.name;
+document.getElementById('wordTemplateNameSection').classList.remove('hidden');
+document.getElementById('templateNameInput').value = file.name.replace('.docx','');
+
+try {
+const arrayBuffer = await file.arrayBuffer();
+// Extract with formatting preserved (headings, bold, italics, lists, tables)
+const result = await mammoth.convertToHtml({ arrayBuffer }, {
+styleMap: [
+"p[style-name='Heading 1'] => h1:fresh",
+"p[style-name='Heading 2'] => h2:fresh",
+"p[style-name='Heading 3'] => h3:fresh"
+]
+});
+mmWordContent = result.value || '<p></p>';
+
+// Show the REAL formatted document in the editor
+const editor = document.getElementById('templateEditor');
+editor.innerHTML = mmWordContent;
+
+markStep(1, 'done', '✅ ' + file.name + ' loaded');
+toast('✅ Word document loaded — showing your real formatting', 'ok');
+updateEditorPlaceholders();
+} catch(e) {
+// If mammoth fails, allow manual entry
+mmWordContent = '';
+markStep(1, 'done', '📄 ' + file.name + ' (manual edit mode)');
+toast('⚠️ Could not extract formatting — type your template manually', 'err', 4000);
+}
+}
+
+async function loadWordIntoEditor() {
+if (!mmWordContent) { toast('⚠️ No Word file loaded', 'err'); return; }
+document.getElementById('templateEditor').innerHTML = mmWordContent;
+updateEditorPlaceholders();
+toast('✅ Template reloaded from Word file', 'ok');
+}
+
+// ── Excel upload ──
+async function handleExcelUpload(event) {
+const file = event.target.files[0];
+if (!file) return;
+document.getElementById('excelFileName').classList.remove('hidden');
+document.getElementById('excelFileName').textContent = '📊 ' + file.name;
+
+const buffer = await file.arrayBuffer();
+mmWorkbook = XLSX.read(buffer, { type:'array' });
+mmSheetNames = mmWorkbook.SheetNames;
+
+const sel = document.getElementById('sheetSelect');
+sel.innerHTML = mmSheetNames.map((s,i) => `<option value="${i}">${esc(s)}</option>`).join('');
+document.getElementById('sheetSelector').classList.remove('hidden');
+loadSheet();
+markStep(2, 'active', '📊 Workbook loaded — select sheet');
+toast('✅ Excel workbook loaded', 'ok');
+}
+
+function loadSheet() {
+const idx = parseInt(document.getElementById('sheetSelect').value);
+const sheet = mmWorkbook.Sheets[mmSheetNames[idx]];
+const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+mmExcelData = json;
+mmColumns = json.length > 0 ? Object.keys(json[0]) : [];
+
+renderFieldPalette();
+renderDataPreview(json);
+markStep(2, 'done', `✅ ${mmSheetNames[idx]}: ${json.length} rows, ${mmColumns.length} columns`);
+if (json.length > 0) markStep(3, 'active', 'Ready — place fields and merge');
+}
+
+function renderFieldPalette() {
+const p = document.getElementById('fieldPalette');
+if (!mmColumns.length) { p.innerHTML = '<span class="text-muted text-sm">Load Excel data first to see fields here.</span>'; return; }
+p.innerHTML = mmColumns.map(col =>
+`<span class="field-chip" draggable="true" ondragstart="onFieldDragStart(event,'${escA(col)}')" onclick="insertField('${escA(col)}')" title="Drag onto the document, or click to insert {{${esc(col)}}} at the cursor">🎯 {{${esc(col)}}}</span>`
+).join('');
+}
+
+function onFieldDragStart(e, colName) {
+e.dataTransfer.setData('text/plain', colName);
+e.dataTransfer.effectAllowed = 'copy';
+}
+
+function renderDataPreview(data) {
+const section = document.getElementById('dataPreviewSection');
+section.classList.remove('hidden');
+const preview = data.slice(0,3);
+const table = document.getElementById('dataPreviewTable');
+table.innerHTML = `<thead><tr>${mmColumns.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead>
+<tbody>${preview.map(row=>`<tr>${mmColumns.map(c=>`<td>${esc(row[c]||'')}</td>`).join('')}</tr>`).join('')}</tbody>`;
+}
+
+// ── Template editor ──
+let editorSaveTimer;
+function onTemplateEdit() {
+clearTimeout(editorSaveTimer);
+editorSaveTimer = setTimeout(()=>{ updateEditorPlaceholders(); }, 600);
+}
+
+function handleEditorKey(e) {
+if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, ' '); }
+}
+
+function updateEditorPlaceholders() {
+// Visual highlighting of {{...}} in the editor — done via CSS only; actual replacement on merge
+}
+
+function insertField(colName) {
+const editor = document.getElementById('templateEditor');
+editor.focus();
+const placeholder = `{{${colName}}}`;
+document.execCommand('insertText', false, placeholder);
+markStep(3, 'active', 'Fields placed — ready to merge');
+toast(`✅ Inserted {{${colName}}}`, 'ok', 1500);
+}
+
+function onEditorDragOver(e) {
+e.preventDefault();
+e.dataTransfer.dropEffect = 'copy';
+}
+
+function onEditorDrop(e) {
+e.preventDefault();
+const colName = e.dataTransfer.getData('text/plain');
+if (!colName) return;
+const editor = document.getElementById('templateEditor');
+editor.focus();
+let range;
+if (document.caretRangeFromPoint) {
+range = document.caretRangeFromPoint(e.clientX, e.clientY);
+} else if (document.caretPositionFromPoint) {
+const pos = document.caretPositionFromPoint(e.clientX, e.clientY);
+range = document.createRange();
+range.setStart(pos.offsetNode, pos.offset);
+range.collapse(true);
+}
+if (range && editor.contains(range.startContainer)) {
+const sel = window.getSelection();
+sel.removeAllRanges();
+sel.addRange(range);
+document.execCommand('insertText', false, `{{${colName}}}`);
+} else {
+// Fallback: append at the end of the editor
+editor.focus();
+const r = document.createRange();
+r.selectNodeContents(editor);
+r.collapse(false);
+const sel = window.getSelection();
+sel.removeAllRanges();
+sel.addRange(r);
+document.execCommand('insertText', false, `{{${colName}}}`);
+}
+markStep(3, 'active', 'Fields placed — ready to merge');
+toast(`✅ Dropped {{${colName}}} into the document`, 'ok', 1500);
+}
+
+function clearTemplateEditor() {
+if (confirm('Clear the template editor?')) {
+document.getElementById('templateEditor').innerHTML = '';
+}
+}
+
+function getTemplateContent() {
+return document.getElementById('templateEditor').innerHTML || '';
+}
+
+// ── Save template ──
+function saveTemplate() {
+const name = document.getElementById('templateNameInput').value.trim();
+if (!name) { toast('⚠️ Enter a template name first', 'err'); return; }
+const content = getTemplateContent();
+if (!content) { toast('⚠️ Template editor is empty', 'err'); return; }
+const existing = mergeTemplates.findIndex(t => t.name === name);
+const tpl = { name, content, fileName: mmWordFileName, savedAt: new Date().toLocaleDateString() };
+if (existing >= 0) mergeTemplates[existing] = tpl;
+else mergeTemplates.push(tpl);
+localStorage.setItem('ict_merge_templates', JSON.stringify(mergeTemplates)); cloudSync('merge_templates', mergeTemplates);
+renderSavedTemplates();
+toast(`✅ Template "${name}" saved`, 'ok');
+}
+
+function renderSavedTemplates() {
+mergeTemplates = JSON.parse(localStorage.getItem('ict_merge_templates') || '[]');
+const el = document.getElementById('savedTemplatesList');
+if (!mergeTemplates.length) {
+el.innerHTML = '<span class="text-muted text-sm">No saved templates yet.</span>';
+return;
+}
+el.innerHTML = mergeTemplates.map((t,i) =>
+`<div class="saved-template-item ${selectedTemplateIdx===i?'selected':''}" onclick="loadSavedTemplate(${i})">
+<div>
+<div style="font-weight:700;font-size:0.88rem;">📄 ${esc(t.name)}</div>
+<div class="text-sm text-muted">Saved ${esc(t.savedAt)} · ${t.content.length} chars</div>
+</div>
+<div style="display:flex;gap:6px;">
+<button class="btn btn-ghost btn-xs" onclick="loadSavedTemplate(${i});event.stopPropagation()">📂 Load</button>
+<button class="btn btn-danger btn-xs" onclick="deleteSavedTemplate(${i});event.stopPropagation()">🗑</button>
+</div>
+</div>`
+).join('');
+}
+
+function loadSavedTemplate(idx) {
+selectedTemplateIdx = idx;
+const tpl = mergeTemplates[idx];
+document.getElementById('templateEditor').innerHTML = tpl.content;
+document.getElementById('templateNameInput').value = tpl.name;
+mmWordContent = tpl.content;
+document.getElementById('wordTemplateNameSection').classList.remove('hidden');
+markStep(1, 'done', '✅ Template: ' + tpl.name);
+renderSavedTemplates();
+toast(`📂 Loaded template: ${tpl.name}`, 'ok');
+updateEditorPlaceholders();
+}
+
+function deleteSavedTemplate(idx) {
+if (!confirm(`Delete template "${mergeTemplates[idx].name}"?`)) return;
+mergeTemplates.splice(idx,1);
+localStorage.setItem('ict_merge_templates', JSON.stringify(mergeTemplates)); cloudSync('merge_templates', mergeTemplates);
+renderSavedTemplates();
+}
+
+// ── Step indicator helpers ──
+function markStep(num, state, text) {
+const card = document.getElementById(`step${num}-card`);
+const stat = document.getElementById(`step${num}-status`);
+card.className = `merge-step ${state}`;
+stat.innerHTML = `<span class="${state==='done'?'tag tag-green':state==='active'?'tag tag-orange':''}" style="display:inline;">${esc(text)}</span>`;
+}
+
+// ── Preview ──
+function previewMerge() {
+const template = getTemplateContent();
+if (!template) { toast('⚠️ Template editor is empty', 'err'); return; }
+if (!mmExcelData.length) { toast('⚠️ No Excel data loaded', 'err'); return; }
+const row = mmExcelData[0];
+let result = template;
+mmColumns.forEach(col => { result = result.replaceAll(`{{${col}}}`, esc(String(row[col] ?? ''))); });
+const w = window.open('', '_blank', 'width=750,height=650');
+w.document.write(`<html><head><title>Preview — Row 1 of ${mmExcelData.length}</title>
+<style>body{font-family:Georgia,serif;padding:36px 44px;line-height:1.8;font-size:14px;max-width:720px;margin:auto;color:#222;}
+table{border-collapse:collapse;width:100%;}td,th{border:1px solid #ccc;padding:6px 10px;}
+.pv-banner{background:#eef4ff;color:#2255aa;padding:8px 14px;border-radius:8px;font-size:12px;margin-bottom:20px;font-family:sans-serif;}</style>
+</head><body><div class="pv-banner">👁 Preview — Row 1 of ${mmExcelData.length} (fields replaced with real data)</div>${result}</body></html>`);
+w.document.close();
+}
+
+// ── Main merge ──
+async function runMerge() {
+const template = getTemplateContent();
+if (!template) { toast('⚠️ Template editor is empty', 'err'); return; }
+if (!mmExcelData.length) { toast('⚠️ Load Excel data first', 'err'); return; }
+
+const format = document.getElementById('mergeOutputFormat').value;
+const baseName = document.getElementById('mergeOutputName').value.trim() || 'MergedDocument';
+const btn = document.getElementById('mergeBtn');
+btn.disabled = true; btn.textContent = '⏳ Merging…';
+
+const results = [];
+
+try {
+for (let i = 0; i < mmExcelData.length; i++) {
+const row = mmExcelData[i];
+let merged = template;
+mmColumns.forEach(col => { merged = merged.replaceAll(`{{${col}}}`, row[col] !== undefined ? esc(String(row[col])) : ''); });
+const fileName = `${baseName}_${i+1}`;
+results.push({ idx: i+1, row, merged, fileName });
+}
+
+// Render results
+const section = document.getElementById('mergeResultsSection');
+const list = document.getElementById('mergeResultsList');
+section.classList.remove('hidden');
+
+list.innerHTML = results.map(r =>
+`<div class="merge-result-item">
+<div>
+<div style="font-weight:700;font-size:0.88rem;">📄 ${esc(r.fileName)}</div>
+<div class="text-sm text-muted">${mmColumns.filter(c=>r.row[c]).map(c=>`${esc(c)}: ${esc(String(r.row[c]).substring(0,30))}`).slice(0,3).join(' · ')}</div>
+</div>
+<div style="display:flex;gap:6px;">
+${(format==='docx'||format==='both') ? `<button class="btn btn-ghost btn-xs" onclick="downloadDocx(${r.idx-1})">⬇️ DOCX</button>` : ''}
+${(format==='pdf'||format==='both') ? `<button class="btn btn-ghost btn-xs" onclick="printMerged(${r.idx-1})">🖨️ PDF</button>` : ''}
+${format==='preview' ? `<button class="btn btn-ghost btn-xs" onclick="viewMerged(${r.idx-1})">👁 View</button>` : ''}
+</div>
+</div>`
+).join('');
+
+// Store for download callbacks
+window._mergeResults = results;
+
+if (format === 'docx' || format === 'both') downloadAllDocx(results, baseName);
+if (format === 'pdf' || format === 'both') toast('Click 🖨️ PDF on each row to print/save as PDF', 'info', 5000);
+if (format === 'preview') toast('Click 👁 View to preview each merged document', 'info', 4000);
+
+markStep(3, 'done', `✅ ${results.length} documents merged`);
+toast(`✅ Merged ${results.length} documents`, 'ok');
+} catch(e) {
+toast('❌ Merge error: ' + e.message, 'err');
+}
+btn.disabled = false; btn.textContent = '🔀 Run Merge';
+}
+
+function viewMerged(idx) {
+const r = window._mergeResults[idx];
+const w = window.open('','_blank','width=750,height=650');
+w.document.write(`<html><head><title>${esc(r.fileName)}</title>
+<style>body{font-family:Georgia,serif;padding:40px;line-height:1.8;font-size:15px;max-width:720px;margin:auto;color:#222;}
+table{border-collapse:collapse;width:100%;}td,th{border:1px solid #ccc;padding:6px 10px;}</style></head>
+<body>${r.merged}</body></html>`);
+w.document.close();
+}
+
+function printMerged(idx) {
+const r = window._mergeResults[idx];
+const s = schoolSettings;
+const color = s.color || '#4f8ef7';
+const printWin = window.open('','_blank');
+printWin.document.write(`<!DOCTYPE html><html><head><title>${esc(r.fileName)}</title>
+<style>
+body{font-family:Georgia,serif;padding:40px 50px;line-height:1.7;font-size:12pt;color:#111;max-width:750px;margin:auto;}
+.header{margin-bottom:24px;padding-bottom:12px;border-bottom:3px solid ${color};}
+.school-name{font-size:13pt;font-weight:800;color:${color};letter-spacing:1px;text-transform:uppercase;}
+.motto{font-size:9pt;color:#777;margin-bottom:6px;}
+.teacher-info{font-size:10pt;color:#555;margin-top:4px;}
+.content table{border-collapse:collapse;width:100%;margin:10px 0;}
+.content td,.content th{border:1px solid #ccc;padding:6px 10px;}
+.footer{margin-top:40px;padding-top:10px;border-top:1px solid #ccc;font-size:9pt;color:#888;display:flex;justify-content:space-between;}
+@media print{body{padding:20px 30px;}}
+</style></head><body>
+<div class="header">
+${s.schoolName?`<div class="school-name">${esc(s.schoolName)}</div>`:''}
+${s.motto?`<div class="motto">${esc(s.motto)}</div>`:''}
+${s.teacherName?`<div class="teacher-info">${esc(s.teacherName)}${s.subject?' · '+esc(s.subject):''}</div>`:''}
+</div>
+<div class="content">${r.merged}</div>
+<div class="footer">
+<span>${s.teacherName?esc(s.teacherName)+' · ':''} TeachNest</span>
+<span>${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</span>
+</div>
+<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script>
+</body></html>`);
+printWin.document.close();
+}
+
+// ── Convert simple HTML (from the template editor) into docx paragraphs ──
+function htmlToDocxChildren(html) {
+const { Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType } = docx;
+const parser = new DOMParser();
+const bodyEl = parser.parseFromString(`<div>${html}</div>`, 'text/html').body.firstChild;
+const children = [];
+
+function runsFromInline(node, baseBold, baseItalic) {
+let runs = [];
+node.childNodes.forEach(n => {
+if (n.nodeType === Node.TEXT_NODE) {
+const t = n.textContent;
+if (t) runs.push(new TextRun({ text: t, bold: baseBold, italics: baseItalic, size: 22 }));
+} else if (n.nodeType === Node.ELEMENT_NODE) {
+const tag = n.tagName.toLowerCase();
+if (tag === 'br') { runs.push(new TextRun({ text:'', break:1 })); }
+else if (tag === 'b' || tag === 'strong') runs = runs.concat(runsFromInline(n, true, baseItalic));
+else if (tag === 'i' || tag === 'em') runs = runs.concat(runsFromInline(n, baseBold, true));
+else runs = runs.concat(runsFromInline(n, baseBold, baseItalic));
+}
+});
+return runs;
+}
+
+function walk(el) {
+Array.from(el.children).forEach(node => {
+const tag = node.tagName.toLowerCase();
+if (tag === 'p') {
+const runs = runsFromInline(node, false, false);
+children.push(new Paragraph({ children: runs.length ? runs : [new TextRun({text:'', size:22})], spacing:{ after: 160 } }));
+} else if (tag === 'h1' || tag === 'h2' || tag === 'h3') {
+const level = tag === 'h1' ? HeadingLevel.HEADING_1 : tag === 'h2' ? HeadingLevel.HEADING_2 : HeadingLevel.HEADING_3;
+children.push(new Paragraph({ children: runsFromInline(node, true, false), heading: level, spacing:{ before:120, after: 160 } }));
+} else if (tag === 'ul' || tag === 'ol') {
+Array.from(node.children).forEach(li => {
+const runs = runsFromInline(li, false, false);
+children.push(new Paragraph({ children:[new TextRun({text:'• ', size:22}), ...runs], spacing:{ after: 100 } }));
+});
+} else if (tag === 'table') {
+const rows = Array.from(node.querySelectorAll('tr')).map(tr => {
+const cells = Array.from(tr.children).map(td => new TableCell({
+children: [new Paragraph({ children: runsFromInline(td, td.tagName.toLowerCase()==='th', false) })],
+width: { size: 2000, type: WidthType.DXA }
+}));
+return new TableRow({ children: cells });
+});
+if (rows.length) children.push(new Table({ width:{ size:100, type: WidthType.PERCENTAGE }, rows }));
+children.push(new Paragraph({ children:[new TextRun({text:'', size:22})], spacing:{ after: 120 } }));
+} else if (tag === 'br') {
+children.push(new Paragraph({ children:[new TextRun({text:'', size:22})] }));
+} else {
+// Unknown block element (e.g. div) — recurse into it
+walk(node);
+}
+});
+}
+
+walk(bodyEl);
+if (!children.length) children.push(new Paragraph({ children:[new TextRun({ text: bodyEl.textContent || '', size:22 })] }));
+return children;
+}
+
+async function downloadDocx(idx) {
+const r = window._mergeResults[idx];
+toast('⏳ Generating DOCX…', 'info', 2000);
+try {
+const { Document, Packer, Paragraph, TextRun } = docx;
+const children = htmlToDocxChildren(r.merged);
+
+// Add school header if available
+const s = schoolSettings;
+const headerParas = [];
+if (s.schoolName) headerParas.push(new Paragraph({ children:[new TextRun({ text: s.schoolName, bold:true, size:28 })], spacing:{after:80} }));
+if (s.motto) headerParas.push(new Paragraph({ children:[new TextRun({ text: s.motto, italics:true, size:20, color:'777777' })], spacing:{after:200} }));
+
+const doc = new Document({ sections:[{ properties:{}, children:[...headerParas, ...children] }] });
+const blob = await Packer.toBlob(doc);
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url; a.download = r.fileName + '.docx'; a.click();
+URL.revokeObjectURL(url);
+toast('✅ DOCX downloaded: ' + r.fileName, 'ok');
+} catch(e) {
+toast('❌ DOCX error: ' + e.message, 'err');
+console.error(e);
+}
+}
+
+async function downloadAllDocx(results, baseName) {
+// Download first one immediately; user can click individual buttons for rest
+if (results.length === 1) {
+downloadDocx(0);
+} else {
+toast(`📁 ${results.length} files ready — click ⬇️ DOCX on each row to download`, 'info', 6000);
+}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STUDENT REGISTER (Mon–Fri attendance) — fully offline, no API key
+// ═══════════════════════════════════════════════════════════════
+const REG_DAYS = ['Mon','Tue','Wed','Thu','Fri'];
+const REG_STATUS_CYCLE = ['','P','A','L','E'];
+const REG_STATUS_LABEL = { '':'—', P:'Present', A:'Absent', L:'Late', E:'Excused' };
+let registerData = JSON.parse(localStorage.getItem('ict_register') || '{}');
+let regWeekStart = mondayOf(new Date());
+
+function mondayOf(d) {
+const date = new Date(d);
+const day = date.getDay();
+const diff = (day === 0 ? -6 : 1) - day; // shift to Monday
+date.setDate(date.getDate() + diff);
+date.setHours(0,0,0,0);
+return date;
+}
+function fmtDate(d) { return d.toISOString().slice(0,10); }
+function weekKey(mon) { return fmtDate(mon); }
+function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate()+n); return r; }
+function weekDates(mon) { return REG_DAYS.map((_,i)=>addDays(mon,i)); }
+function weekLabelStr(mon) {
+const fri = addDays(mon,4);
+const opts = { day:'numeric', month:'short' };
+return `${mon.toLocaleDateString('en-GB',opts)} – ${fri.toLocaleDateString('en-GB',opts)}, ${fri.getFullYear()}`;
+}
+
+function saveRegister() { localStorage.setItem('ict_register', JSON.stringify(registerData)); cloudSync('register', registerData); }
+
+function regShiftWeek(n) { regWeekStart = addDays(regWeekStart, n*7); renderRegister(); }
+function regGoToday() { regWeekStart = mondayOf(new Date()); renderRegister(); }
+
+function cycleAttendance(studentId, dayIdx) {
+const wk = weekKey(regWeekStart);
+if (!registerData[wk]) registerData[wk] = {};
+if (!registerData[wk][studentId]) registerData[wk][studentId] = ['','','','',''];
+const cur = registerData[wk][studentId][dayIdx] || '';
+const idx = REG_STATUS_CYCLE.indexOf(cur);
+registerData[wk][studentId][dayIdx] = REG_STATUS_CYCLE[(idx+1) % REG_STATUS_CYCLE.length];
+saveRegister();
+renderRegister();
+}
+
+function renderRegister() {
+const wrap = document.getElementById('regTable');
+const empty = document.getElementById('regEmptyState');
+document.getElementById('regWeekLabel').textContent = weekLabelStr(regWeekStart);
+if (!students.length) { wrap.innerHTML=''; empty.classList.remove('hidden'); renderRegSummary(); return; }
+empty.classList.add('hidden');
+const wk = weekKey(regWeekStart);
+const dates = weekDates(regWeekStart);
+const wkData = registerData[wk] || {};
+
+let head = '<thead><tr><th>Student</th>' + REG_DAYS.map((d,i)=>`<th>${d}<br><span style="font-weight:400;opacity:.7">${dates[i].getDate()}/${dates[i].getMonth()+1}</span></th>`).join('') + '<th>Present</th></tr></thead>';
+let body = '<tbody>' + students.map(s=>{
+const row = wkData[s.id] || ['','','','',''];
+const presentCount = row.filter(v=>v==='P'||v==='L').length;
+const cells = row.map((v,i)=>`<td><button class="att-btn ${v}" onclick="cycleAttendance(${s.id},${i})">${REG_STATUS_LABEL[v]==='—'?'—':v}</button></td>`).join('');
+return `<tr><td>${esc(s.name)}</td>${cells}<td style="font-weight:700;color:var(--accent-g)">${presentCount}/5</td></tr>`;
+}).join('') + '</tbody>';
+wrap.innerHTML = head + body;
+renderRegSummary();
+}
+
+function renderRegSummary() {
+const wk = weekKey(regWeekStart);
+const wkData = registerData[wk] || {};
+let totalP=0, totalA=0, totalL=0, totalCells=0;
+students.forEach(s=>{
+const row = wkData[s.id] || ['','','','',''];
+row.forEach(v=>{ if(v){ totalCells++; if(v==='P')totalP++; if(v==='A')totalA++; if(v==='L')totalL++; } });
+});
+const rate = totalCells ? Math.round((totalP+totalL)/totalCells*100) : 0;
+document.getElementById('regSummary').innerHTML = `
+<div class="summ-card"><div class="summ-val" style="color:var(--accent)">${students.length}</div><div class="summ-lbl">Students</div></div>
+<div class="summ-card"><div class="summ-val" style="color:var(--accent-g)">${totalP}</div><div class="summ-lbl">Present Marks</div></div>
+<div class="summ-card"><div class="summ-val" style="color:var(--danger)">${totalA}</div><div class="summ-lbl">Absent Marks</div></div>
+<div class="summ-card"><div class="summ-val" style="color:var(--warn)">${rate}%</div><div class="summ-lbl">Attendance Rate</div></div>`;
+}
+
+function regRowsForExport() {
+const wk = weekKey(regWeekStart);
+const wkData = registerData[wk] || {};
+const dates = weekDates(regWeekStart);
+const header = ['Student', ...REG_DAYS.map((d,i)=>`${d} (${dates[i].getDate()}/${dates[i].getMonth()+1})`), 'Present/5'];
+const rows = students.map(s=>{
+const row = wkData[s.id] || ['','','','',''];
+const presentCount = row.filter(v=>v==='P'||v==='L').length;
+return [s.name, ...row.map(v=>REG_STATUS_LABEL[v]), presentCount+'/5'];
+});
+return { header, rows };
+}
+
+function exportRegisterCSV() {
+if (!students.length) { toast('No students to export.', 'err'); return; }
+const { header, rows } = regRowsForExport();
+const csv = [header, ...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+downloadBlob(csv, `text/csv`, `attendance_register_${weekKey(regWeekStart)}.csv`);
+toast('✅ Register CSV downloaded', 'ok');
+}
+
+function exportRegisterXLSX() {
+if (!students.length) { toast('No students to export.', 'err'); return; }
+const { header, rows } = regRowsForExport();
+const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+ws['!cols'] = header.map(()=>({ wch: 16 }));
+const wb = XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb, ws, 'Register');
+XLSX.writeFile(wb, `attendance_register_${weekKey(regWeekStart)}.xlsx`);
+toast('✅ Register Excel downloaded', 'ok');
+}
+
+async function exportRegisterDOCX() {
+if (!students.length) { toast('No students to export.', 'err'); return; }
+toast('⏳ Generating DOCX…', 'info', 2000);
+try {
+const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, HeadingLevel } = docx;
+const { header, rows } = regRowsForExport();
+const s = schoolSettings;
+const titlePara = new Paragraph({ children:[new TextRun({ text: (s.schoolName?s.schoolName+' — ':'')+'Weekly Attendance Register', bold:true, size:28 })], spacing:{after:100} });
+const subPara = new Paragraph({ children:[new TextRun({ text: weekLabelStr(regWeekStart) + (s.subject?' · '+s.subject:''), italics:true, size:20, color:'666666' })], spacing:{after:220} });
+const mkRow = (cells, bold) => new TableRow({ children: cells.map(c=>new TableCell({
+children:[new Paragraph({ children:[new TextRun({ text:String(c), bold: !!bold, size:20 })] })],
+width:{ size: 2000, type: WidthType.DXA }
+})) });
+const table = new Table({ width:{ size:100, type: WidthType.PERCENTAGE }, rows:[ mkRow(header,true), ...rows.map(r=>mkRow(r,false)) ] });
+const doc = new Document({ sections:[{ properties:{}, children:[titlePara, subPara, table] }] });
+const blob = await Packer.toBlob(doc);
+triggerDownloadBlob(blob, `attendance_register_${weekKey(regWeekStart)}.docx`);
+toast('✅ Register Word doc downloaded', 'ok');
+} catch(e) { toast('❌ DOCX error: '+e.message, 'err'); console.error(e); }
+}
+
+function exportRegisterPDF() {
+if (!students.length) { toast('No students to export.', 'err'); return; }
+const { header, rows } = regRowsForExport();
+const color = schoolSettings.color || '#4f8ef7';
+document.getElementById('print-area').innerHTML = `${getPrintHeader()}
+<h1 style="color:${color};border-bottom:3px solid ${color};font-size:1.55rem;font-weight:800;padding-bottom:10px;margin-bottom:6px;">Weekly Attendance Register</h1>
+<div class="p-meta" style="font-size:0.8rem;color:#555;margin-bottom:22px;">📅 <strong>${weekLabelStr(regWeekStart)}</strong> &nbsp; 👥 <strong>${students.length} Students</strong></div>
+<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+<thead><tr>${header.map(h=>`<th style="background:#f4f4f8;padding:7px 8px;text-align:center;border-bottom:2px solid #ddd;">${esc(h)}</th>`).join('')}</tr></thead>
+<tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:${i===0?'left':'center'};">${esc(String(c))}</td>`).join('')}</tr>`).join('')}</tbody>
+</table>
+${getPrintFooter()}`;
+window.print();
+}
+
+function emailRegister() {
+closeAllShareMenus();
+const { header, rows } = regRowsForExport();
+const s = schoolSettings;
+const subject = `Attendance Register — ${weekLabelStr(regWeekStart)}${s.schoolName?' — '+s.schoolName:''}`;
+let body = `Weekly Attendance Register\n${weekLabelStr(regWeekStart)}\n${s.subject||''}\n\n`;
+body += header.join(' | ') + '\n';
+rows.forEach(r=> body += r.join(' | ') + '\n');
+body += `\n(Generated by TeachNest — for a formatted copy, use "Share File" or download Excel/Word/PDF first and attach it.)`;
+window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+async function shareRegisterFile() {
+closeAllShareMenus();
+if (!students.length) { toast('No students to export.', 'err'); return; }
+const { header, rows } = regRowsForExport();
+const csv = [header, ...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+const file = new File([csv], `attendance_register_${weekKey(regWeekStart)}.csv`, { type:'text/csv' });
+await shareFileOrFallback(file, 'Attendance Register', weekLabelStr(regWeekStart));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BEHAVIOR / DISCIPLINE TRACKER — fully offline, no API key
+// ═══════════════════════════════════════════════════════════════
+let incidents = JSON.parse(localStorage.getItem('ict_incidents') || '[]');
+
+function saveIncidents() { localStorage.setItem('ict_incidents', JSON.stringify(incidents)); cloudSync('incidents', incidents); }
+
+function populateIncidentStudentOptions() {
+const dl = document.getElementById('incStudentList');
+const filt = document.getElementById('behFilterStudent');
+if (dl) dl.innerHTML = students.map(s=>`<option value="${escA(s.name)}">`).join('');
+if (filt) {
+const cur = filt.value;
+filt.innerHTML = '<option value="">All Students</option>' + students.map(s=>`<option value="${escA(s.name)}">${esc(s.name)}</option>`).join('');
+filt.value = cur;
+}
+}
+
+function addIncident() {
+const name = document.getElementById('incStudent').value.trim();
+const desc = document.getElementById('incDesc').value.trim();
+if (!name) { toast('Enter a student name.', 'err'); return; }
+if (!desc) { toast('Describe what happened.', 'err'); return; }
+const dateVal = document.getElementById('incDate').value || new Date().toISOString().slice(0,10);
+incidents.unshift({
+id: Date.now(),
+student: name,
+category: document.getElementById('incCategory').value,
+severity: document.getElementById('incSeverity').value,
+date: dateVal,
+description: desc,
+action: document.getElementById('incAction').value.trim(),
+recordedBy: schoolSettings.teacherName || ''
+});
+saveIncidents();
+document.getElementById('incStudent').value = '';
+document.getElementById('incDesc').value = '';
+document.getElementById('incAction').value = '';
+document.getElementById('incDate').value = '';
+toast('✅ Incident logged', 'ok');
+renderIncidents();
+}
+
+function deleteIncident(id) {
+if (!confirm('Delete this incident record?')) return;
+incidents = incidents.filter(i=>i.id!==id);
+saveIncidents(); renderIncidents();
+}
+
+function filteredIncidents() {
+const stu = document.getElementById('behFilterStudent')?.value || '';
+const sev = document.getElementById('behFilterSeverity')?.value || '';
+return incidents.filter(i => (!stu || i.student===stu) && (!sev || i.severity===sev));
+}
+
+function renderIncidents() {
+populateIncidentStudentOptions();
+const list = document.getElementById('incidentList');
+const empty = document.getElementById('behEmptyState');
+renderBehSummary();
+const data = filteredIncidents();
+if (!data.length) { list.innerHTML=''; empty.classList.remove('hidden'); return; }
+empty.classList.add('hidden');
+list.innerHTML = data.map(i=>{
+const d = new Date(i.date+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+return `<div class="incident-card sev-${i.severity}">
+<div class="inc-top">
+<div class="inc-student">🧑‍🎓 ${esc(i.student)} <span class="sev-badge ${i.severity}">${i.severity}</span> <span class="cat-badge">${esc(i.category)}</span></div>
+<button class="btn btn-danger btn-xs" onclick="deleteIncident(${i.id})">🗑 Delete</button>
+</div>
+<div class="inc-meta">📅 ${d} ${i.recordedBy?(' &nbsp;·&nbsp; ✍️ '+esc(i.recordedBy)):''}</div>
+<div class="inc-desc">${esc(i.description)}</div>
+${i.action?`<div class="inc-action">✅ Action taken: ${esc(i.action)}</div>`:''}
+</div>`;
+}).join('');
+}
+
+function renderBehSummary() {
+const total = incidents.length;
+const high = incidents.filter(i=>i.severity==='High').length;
+const uniqueStudents = new Set(incidents.map(i=>i.student)).size;
+const thisMonth = incidents.filter(i=>{ const d=new Date(i.date); const now=new Date(); return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear(); }).length;
+document.getElementById('behSummary').innerHTML = `
+<div class="summ-card"><div class="summ-val" style="color:var(--accent)">${total}</div><div class="summ-lbl">Total Incidents</div></div>
+<div class="summ-card"><div class="summ-val" style="color:var(--danger)">${high}</div><div class="summ-lbl">High Severity</div></div>
+<div class="summ-card"><div class="summ-val" style="color:var(--accent-p)">${uniqueStudents}</div><div class="summ-lbl">Students Involved</div></div>
+<div class="summ-card"><div class="summ-val" style="color:var(--warn)">${thisMonth}</div><div class="summ-lbl">This Month</div></div>`;
+}
+
+function incRowsForExport() {
+const data = filteredIncidents();
+const header = ['Student','Date','Category','Severity','Description','Action Taken','Recorded By'];
+const rows = data.map(i=>[i.student, i.date, i.category, i.severity, i.description, i.action||'', i.recordedBy||'']);
+return { header, rows };
+}
+
+function exportIncidentsCSV() {
+if (!incidents.length) { toast('No incidents to export.', 'err'); return; }
+const { header, rows } = incRowsForExport();
+const csv = [header, ...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+downloadBlob(csv, 'text/csv', `behavior_incidents_${new Date().toISOString().slice(0,10)}.csv`);
+toast('✅ Incidents CSV downloaded', 'ok');
+}
+
+function exportIncidentsXLSX() {
+if (!incidents.length) { toast('No incidents to export.', 'err'); return; }
+const { header, rows } = incRowsForExport();
+const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+ws['!cols'] = header.map((h,i)=>({ wch: i===4?40:16 }));
+const wb = XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb, ws, 'Incidents');
+XLSX.writeFile(wb, `behavior_incidents_${new Date().toISOString().slice(0,10)}.xlsx`);
+toast('✅ Incidents Excel downloaded', 'ok');
+}
+
+async function exportIncidentsDOCX() {
+if (!incidents.length) { toast('No incidents to export.', 'err'); return; }
+toast('⏳ Generating DOCX…', 'info', 2000);
+try {
+const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType } = docx;
+const { header, rows } = incRowsForExport();
+const s = schoolSettings;
+const titlePara = new Paragraph({ children:[new TextRun({ text:(s.schoolName?s.schoolName+' — ':'')+'Behavior & Discipline Report', bold:true, size:28 })], spacing:{after:100} });
+const subPara = new Paragraph({ children:[new TextRun({ text: new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}), italics:true, size:20, color:'666666' })], spacing:{after:220} });
+const mkRow = (cells, bold) => new TableRow({ children: cells.map(c=>new TableCell({
+children:[new Paragraph({ children:[new TextRun({ text:String(c), bold: !!bold, size:18 })] })],
+width:{ size: 1500, type: WidthType.DXA }
+})) });
+const table = new Table({ width:{ size:100, type: WidthType.PERCENTAGE }, rows:[ mkRow(header,true), ...rows.map(r=>mkRow(r,false)) ] });
+const doc = new Document({ sections:[{ properties:{}, children:[titlePara, subPara, table] }] });
+const blob = await Packer.toBlob(doc);
+triggerDownloadBlob(blob, `behavior_incidents_${new Date().toISOString().slice(0,10)}.docx`);
+toast('✅ Incidents Word doc downloaded', 'ok');
+} catch(e) { toast('❌ DOCX error: '+e.message, 'err'); console.error(e); }
+}
+
+function exportIncidentsPDF() {
+if (!incidents.length) { toast('No incidents to export.', 'err'); return; }
+const data = filteredIncidents();
+const color = schoolSettings.color || '#4f8ef7';
+const rows = data.map(i=>{
+const sc = i.severity==='High'?'#cc2244':i.severity==='Medium'?'#c8960c':'#00c07a';
+const d = new Date(i.date+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+return `<tr>
+<td style="padding:7px 8px;border-bottom:1px solid #eee;"><strong>${esc(i.student)}</strong></td>
+<td style="padding:7px 8px;border-bottom:1px solid #eee;">${d}</td>
+<td style="padding:7px 8px;border-bottom:1px solid #eee;">${esc(i.category)}</td>
+<td style="padding:7px 8px;border-bottom:1px solid #eee;font-weight:700;color:${sc}">${i.severity}</td>
+<td style="padding:7px 8px;border-bottom:1px solid #eee;font-size:0.78rem;">${esc(i.description)}</td>
+<td style="padding:7px 8px;border-bottom:1px solid #eee;font-size:0.78rem;font-style:italic;">${esc(i.action||'—')}</td>
+</tr>`;
+}).join('');
+document.getElementById('print-area').innerHTML = `${getPrintHeader()}
+<h1 style="color:${color};border-bottom:3px solid ${color};font-size:1.55rem;font-weight:800;padding-bottom:10px;margin-bottom:6px;">Behavior &amp; Discipline Report</h1>
+<div class="p-meta" style="font-size:0.8rem;color:#555;margin-bottom:22px;">📅 <strong>${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</strong> &nbsp; 🚨 <strong>${data.length} Incidents</strong></div>
+<table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+<thead><tr>${['Student','Date','Category','Severity','Description','Action Taken'].map(h=>`<th style="background:#f4f4f8;padding:8px;text-align:left;border-bottom:2px solid #ddd;">${h}</th>`).join('')}</tr></thead>
+<tbody>${rows}</tbody>
+</table>
+${getPrintFooter()}`;
+window.print();
+}
+
+function emailIncidents() {
+closeAllShareMenus();
+const { header, rows } = incRowsForExport();
+if (!rows.length) { toast('No incidents to email.', 'err'); return; }
+const s = schoolSettings;
+const subject = `Behavior & Discipline Report${s.schoolName?' — '+s.schoolName:''}`;
+let body = `Behavior & Discipline Report\n${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}\n\n`;
+rows.forEach(r=>{
+body += `Student: ${r[0]}\nDate: ${r[1]}\nCategory: ${r[2]}\nSeverity: ${r[3]}\nWhat happened: ${r[4]}\nAction taken: ${r[5]||'—'}\n\n`;
+});
+body += `(Generated by TeachNest — for a formatted copy, use "Share File" or download Excel/Word/PDF first and attach it.)`;
+window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+async function shareIncidentsFile() {
+closeAllShareMenus();
+if (!incidents.length) { toast('No incidents to export.', 'err'); return; }
+const { header, rows } = incRowsForExport();
+const csv = [header, ...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+const file = new File([csv], `behavior_incidents_${new Date().toISOString().slice(0,10)}.csv`, { type:'text/csv' });
+await shareFileOrFallback(file, 'Behavior & Discipline Report', 'Incident log export');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SHARE / EXPORT SHARED HELPERS
+// ═══════════════════════════════════════════════════════════════
+function downloadBlob(content, mime, filename) {
+const blob = new Blob([content], { type: mime });
+triggerDownloadBlob(blob, filename);
+}
+function triggerDownloadBlob(blob, filename) {
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url; a.download = filename; a.click();
+URL.revokeObjectURL(url);
+}
+async function shareFileOrFallback(file, title, text) {
+if (navigator.canShare && navigator.canShare({ files:[file] })) {
+try { await navigator.share({ files:[file], title, text }); toast('✅ Shared', 'ok'); return; }
+catch(e) { if (e.name==='AbortError') return; }
+}
+// Fallback: browsers without native file-share just get the file downloaded
+triggerDownloadBlob(file, file.name);
+toast('📥 Native sharing not available here — file downloaded instead. Attach it to your email/WhatsApp manually.', 'info', 5000);
+}
+function toggleShareMenu(id) {
+const dd = document.getElementById(id);
+const wasOpen = dd.classList.contains('open');
+closeAllShareMenus();
+if (!wasOpen) dd.classList.add('open');
+}
+function closeAllShareMenus() {
+document.querySelectorAll('.share-dropdown').forEach(d=>d.classList.remove('open'));
+}
+document.addEventListener('click', e=>{
+if (!e.target.closest('.share-menu')) closeAllShareMenus();
+});
+
+// ═══════════════════════════════════════════════════════════════
+// STUDENT TRACKER
+// ═══════════════════════════════════════════════════════════════
+let students = JSON.parse(localStorage.getItem('ict_students') || '[]');
+let curStudentId = null;
+let recTopics = [];
+
+function saveStudents() {
+localStorage.setItem('ict_students', JSON.stringify(students));
+cloudSync('students', students);
+}
+
+function addStudent() {
+const el = document.getElementById('newStudentName');
+const name = el.value.trim();
+if (!name) return;
+if (students.find(s=>s.name.toLowerCase()===name.toLowerCase())) { alert('Student already exists!'); return; }
+students.push({ id:Date.now(), name, records:[] });
+saveStudents(); el.value = ''; renderStudents();
+}
+
+function bulkImport() {
+const raw = document.getElementById('bulkNames').value.trim();
+if (!raw) return;
+let added = 0;
+raw.split('\n').map(n=>n.trim()).filter(Boolean).forEach(name=>{
+if (!students.find(s=>s.name.toLowerCase()===name.toLowerCase())) {
+students.push({ id: Date.now()+Math.random(), name, records:[] }); added++;
+}
+});
+saveStudents(); document.getElementById('bulkNames').value = ''; renderStudents();
+if (added>0) toast(`✅ Added ${added} student(s)`, 'ok');
+}
+
+function deleteStudent(id) {
+if (!confirm('Delete this student and all records?')) return;
+students = students.filter(s=>s.id!==id);
+saveStudents(); renderStudents();
+}
+
+function openRecordModal(id) {
+curStudentId = id; recTopics = [];
+const s = students.find(s=>s.id===id);
+document.getElementById('recModalTitle').textContent = '📝 Record for ' + s.name;
+['recScore','recAssessName','recTopicInput','recNote'].forEach(i=>document.getElementById(i).value='');
+document.getElementById('recTopicsChips').innerHTML = '';
+document.getElementById('recordModal').classList.remove('hidden');
+}
+function closeRecordModal() { document.getElementById('recordModal').classList.add('hidden'); curStudentId=null; }
+
+function addRecTopic() {
+const inp = document.getElementById('recTopicInput');
+const t = inp.value.trim();
+if (!t || recTopics.includes(t)) { inp.value=''; return; }
+recTopics.push(t); inp.value=''; renderRecTopics();
+}
+function removeRecTopic(t) { recTopics=recTopics.filter(x=>x!==t); renderRecTopics(); }
+function renderRecTopics() {
+document.getElementById('recTopicsChips').innerHTML = recTopics.map(t=>
+`<span class="topic-rm" onclick="removeRecTopic('${escA(t)}')">${esc(t)} ✕</span>`
+).join('');
+}
+
+function saveRecord() {
+const s = students.find(s=>s.id===curStudentId);
+if (!s) return;
+const score = document.getElementById('recScore').value;
+s.records.push({
+date: new Date().toLocaleDateString(),
+score: score!==''?parseInt(score):null,
+assessName: document.getElementById('recAssessName').value.trim()||'Quiz',
+topics: [...recTopics],
+note: document.getElementById('recNote').value.trim()
+});
+saveStudents(); closeRecordModal(); renderStudents();
+}
+
+function getAvg(s) {
+const sc = s.records.filter(r=>r.score!==null);
+return sc.length ? Math.round(sc.reduce((a,r)=>a+r.score,0)/sc.length) : null;
+}
+function scorePillClass(s) { if(s===null)return''; return s>=75?'good':s>=50?'warn':'poor'; }
+function allTopics(s) { return [...new Set(s.records.flatMap(r=>r.topics))]; }
+
+function renderStudents() {
+const list = document.getElementById('classList');
+const empty = document.getElementById('emptyState');
+renderSummary();
+if (!students.length) { list.innerHTML=''; empty.classList.remove('hidden'); return; }
+empty.classList.add('hidden');
+list.innerHTML = students.map(s=>{
+const avg = getAvg(s);
+const topics = allTopics(s);
+const last = s.records[s.records.length-1];
+const initials = s.name.split(' ').map(w=>w[0]).join('').toUpperCase().substring(0,2);
+return `<div class="student-card">
+<div class="sc-header">
+<div class="sc-avatar">${initials}</div>
+<div><div class="sc-name">${esc(s.name)}</div><div class="sc-meta">${s.records.length} record${s.records.length!==1?'s':''}</div></div>
+</div>
+<div class="sc-stats">
+${avg!==null?`<span class="stat-tag ${scorePillClass(avg)}">Avg: ${avg}%</span>`:'<span class="stat-tag">No scores</span>'}
+${last?`<span class="stat-tag">Last: ${last.date}</span>`:''}
+</div>
+${topics.length?`<div class="sc-topics">${topics.slice(0,4).map(t=>`<span class="topic-dot">${esc(t)}</span>`).join('')}${topics.length>4?`<span class="topic-dot">+${topics.length-4}</span>`:''}</div>`:''}
+${last&&last.note?`<div class="sc-note">"${esc(last.note.substring(0,80))}${last.note.length>80?'…':''}"</div>`:''}
+<div class="sc-actions">
+<button class="btn btn-ghost btn-xs" onclick="openRecordModal(${s.id})">+ Record</button>
+<button class="btn btn-ghost btn-xs" onclick="viewHistory(${s.id})">📊 History</button>
+<button class="btn btn-ghost btn-xs" onclick="exportStudentPDF(${s.id})">📄 PDF</button>
+<button class="btn btn-danger btn-xs" onclick="deleteStudent(${s.id})">🗑</button>
+</div>
+</div>`;
+}).join('');
+}
+
+function renderSummary() {
+const total = students.length;
+const all = students.flatMap(s=>s.records.filter(r=>r.score!==null).map(r=>r.score));
+const avg = all.length?Math.round(all.reduce((a,b)=>a+b,0)/all.length):null;
+const struggling = students.filter(s=>{const a=getAvg(s);return a!==null&&a<50;}).length;
+const topics = [...new Set(students.flatMap(s=>allTopics(s)))].length;
+document.getElementById('trackerSummary').innerHTML = `
+<div class="summ-card"><div class="summ-val" style="color:var(--accent)">${total}</div><div class="summ-lbl">Students</div></div>
+<div class="summ-card"><div class="summ-val" style="color:var(--accent-g)">${avg!==null?avg+'%':'—'}</div><div class="summ-lbl">Class Average</div></div>
+<div class="summ-card"><div class="summ-val" style="color:var(--danger)">${struggling}</div><div class="summ-lbl">Need Support</div></div>
+<div class="summ-card"><div class="summ-val" style="color:var(--accent-p)">${topics}</div><div class="summ-lbl">Topics Covered</div></div>`;
+}
+
+function viewHistory(id) {
+const s = students.find(s=>s.id===id);
+if (!s.records.length) { alert('No records yet for '+s.name); return; }
+alert(`📊 History for ${s.name}\n\n${s.records.map(r=>`${r.date} | ${r.assessName} | ${r.score!==null?r.score+'%':'N/A'} | ${r.topics.join(', ')||'—'} | ${r.note||'—'}`).join('\n')}`);
+}
+
+function exportCSV() {
+if (!students.length) { alert('No students to export.'); return; }
+const rows = [['Name','Assessment','Date','Score','Topics','Note']];
+students.forEach(s=>{
+if (!s.records.length) rows.push([s.name,'','','','','']);
+else s.records.forEach(r=>rows.push([s.name,r.assessName,r.date,r.score??'',r.topics.join('; '),r.note]));
+});
+const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+const a = document.createElement('a');
+a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+a.download = 'ict_students_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+}
+
+document.getElementById('recordModal').addEventListener('click',e=>{ if(e.target===e.currentTarget)closeRecordModal(); });
+
+// ═══════════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════════
+let schoolSettings = JSON.parse(localStorage.getItem('ict_settings') || '{}');
+
+function loadSettings() {
+document.getElementById('settingSchoolName').value = schoolSettings.schoolName||'';
+document.getElementById('settingTeacherName').value = schoolSettings.teacherName||'';
+document.getElementById('settingSubject').value = schoolSettings.subject||'';
+document.getElementById('settingColor').value = schoolSettings.color||'#4f8ef7';
+document.getElementById('settingMotto').value = schoolSettings.motto||'';
+updateBrandPreview();
+document.getElementById('fbApiKey').value = FIREBASE_CONFIG.apiKey||'';
+document.getElementById('fbAuthDomain').value = FIREBASE_CONFIG.authDomain||'';
+document.getElementById('fbProjectId').value = FIREBASE_CONFIG.projectId||'';
+document.getElementById('fbStorageBucket').value = FIREBASE_CONFIG.storageBucket||'';
+document.getElementById('fbSenderId').value = FIREBASE_CONFIG.messagingSenderId||'';
+document.getElementById('fbAppId').value = FIREBASE_CONFIG.appId||'';
+const statusEl = document.getElementById('fbCurrentStatus');
+if (statusEl) statusEl.textContent = firebaseReady() ? (currentUser ? '✅ Cloud sync connected — signed in as ' + currentUser.email : '✅ Cloud sync connected — not signed in yet') : '⚪ Cloud sync not connected — data is saved locally on this device only.';
+}
+
+function saveFirebaseConfig() {
+const cfg = {
+apiKey: document.getElementById('fbApiKey').value.trim(),
+authDomain: document.getElementById('fbAuthDomain').value.trim(),
+projectId: document.getElementById('fbProjectId').value.trim(),
+storageBucket: document.getElementById('fbStorageBucket').value.trim(),
+messagingSenderId: document.getElementById('fbSenderId').value.trim(),
+appId: document.getElementById('fbAppId').value.trim()
+};
+const statEl = document.getElementById('fbConfigStatus');
+if (!cfg.apiKey || !cfg.projectId) { statEl.className='key-status err'; statEl.textContent='⚠️ At minimum, API Key and Project ID are required.'; return; }
+localStorage.setItem('cp_firebase_config', JSON.stringify(cfg));
+FIREBASE_CONFIG = cfg;
+statEl.className='key-status ok'; statEl.textContent='✅ Saved! Connecting…';
+initFirebase();
+loadSettings();
+}
+
+function saveSettings() {
+schoolSettings = {
+schoolName: document.getElementById('settingSchoolName').value.trim(),
+teacherName: document.getElementById('settingTeacherName').value.trim(),
+subject: document.getElementById('settingSubject').value.trim(),
+color: document.getElementById('settingColor').value,
+motto: document.getElementById('settingMotto').value.trim()
+};
+localStorage.setItem('ict_settings', JSON.stringify(schoolSettings));
+cloudSync('settings', schoolSettings);
+updateBrandPreview();
+const saved = document.getElementById('settingsSaved');
+saved.classList.remove('hidden'); setTimeout(()=>saved.classList.add('hidden'),2000);
+}
+
+function updateBrandPreview() {
+const s = {
+schoolName: document.getElementById('settingSchoolName')?.value||schoolSettings.schoolName||'',
+teacherName: document.getElementById('settingTeacherName')?.value||schoolSettings.teacherName||'',
+subject: document.getElementById('settingSubject')?.value||schoolSettings.subject||'',
+color: document.getElementById('settingColor')?.value||schoolSettings.color||'#4f8ef7',
+motto: document.getElementById('settingMotto')?.value||schoolSettings.motto||''
+};
+const prev = document.getElementById('previewContent');
+if (!prev) return;
+if (!s.schoolName&&!s.teacherName) { prev.innerHTML='<span class="text-muted text-sm">Fill in your details to see a preview.</span>'; return; }
+prev.innerHTML = `
+<div style="font-weight:800;font-size:1rem;color:${s.color}">${esc(s.schoolName||'Your School')}</div>
+${s.motto?`<div class="text-sm text-muted" style="margin-bottom:6px;">${esc(s.motto)}</div>`:''}
+<div style="height:3px;background:${s.color};border-radius:2px;margin:8px 0 10px;"></div>
+<div class="text-sm"><strong>Teacher:</strong> ${esc(s.teacherName||'—')}</div>
+<div class="text-sm"><strong>Subject:</strong> ${esc(s.subject||'—')}</div>`;
+}
+
+['settingSchoolName','settingTeacherName','settingSubject','settingColor','settingMotto'].forEach(id=>{
+document.getElementById(id)?.addEventListener('input', updateBrandPreview);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// PDF / PRINT HELPERS
+// ═══════════════════════════════════════════════════════════════
+function getPrintHeader() {
+const s = schoolSettings;
+const c = s.color||'#4f8ef7';
+return `<div style="font-family:Inter,sans-serif;">
+<div style="font-weight:800;font-size:1rem;color:${c}">▲ TeachNest</div>
+${s.schoolName?`<div style="font-weight:800;font-size:0.85rem;text-transform:uppercase;letter-spacing:1px;color:${c}">${esc(s.schoolName)}</div>`:''}
+${s.motto?`<div style="font-size:0.75rem;color:#777;margin-bottom:10px;">${esc(s.motto)}</div>`:''}
+<div style="height:4px;background:${c};border-radius:2px;margin-bottom:16px;"></div>
+</div>`;
+}
+function getPrintFooter() {
+const s = schoolSettings;
+const d = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+return `<div style="margin-top:40px;padding-top:12px;border-top:1px solid #ccc;font-size:0.72rem;color:#888;display:flex;justify-content:space-between;font-family:Inter,sans-serif;">
+<span>${s.teacherName?esc(s.teacherName)+' · ':''}TeachNest</span><span>${d}</span></div>`;
+}
+
+function exportLessonPDF() {
+const content = document.getElementById('lessonResult').textContent;
+if (!content) return;
+const topic = document.getElementById('lessonTopic').value||'ICT Lesson';
+const grade = document.getElementById('lessonGrade').value;
+const dur = document.getElementById('lessonDuration').value;
+const style = document.getElementById('lessonStyle').value;
+const color = schoolSettings.color||'#4f8ef7';
+const d = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+document.getElementById('print-area').innerHTML = `${getPrintHeader()}
+<h1 style="color:${color};border-bottom:3px solid ${color};font-size:1.55rem;font-weight:800;padding-bottom:10px;margin-bottom:6px;">${esc(topic)}</h1>
+<div style="font-size:0.8rem;color:#555;margin-bottom:22px;display:flex;gap:16px;flex-wrap:wrap;">
+<div>📅 <strong>${d}</strong></div><div>🎓 <strong>${esc(grade)}</strong></div><div>⏱ <strong>${esc(dur)}</strong></div><div>📚 <strong>${esc(style)}</strong></div>
+</div>
+<div style="font-size:0.9rem;line-height:1.9;color:#222;white-space:pre-wrap;">${esc(content)}</div>
+${getPrintFooter()}`;
+window.print();
+}
+
+function exportStudentPDF(id) {
+const s = students.find(s=>s.id===id);
+if (!s) return;
+const color = schoolSettings.color||'#4f8ef7';
+const avg = getAvg(s); const topics = allTopics(s);
+const initials = s.name.split(' ').map(w=>w[0]).join('').toUpperCase().substring(0,2);
+const d = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+const sc = avg===null?'#999':avg>=75?'#00c07a':avg>=50?'#f7b731':'#ff3355';
+const rows = s.records.length ? s.records.map(r=>`<tr>
+<td>${esc(r.date)}</td><td>${esc(r.assessName)}</td>
+<td style="font-weight:700;color:${r.score>=75?'#00c07a':r.score>=50?'#c8960c':'#cc2244'}">${r.score!==null?r.score+'%':'—'}</td>
+<td>${r.topics.map(t=>`<span style="background:#e8f0fe;color:#1a73e8;padding:1px 6px;border-radius:8px;font-size:0.7rem;">${esc(t)}</span>`).join(' ')}</td>
+<td style="font-style:italic;color:#555;font-size:0.78rem;">${esc(r.note||'—')}</td>
+</tr>`).join('') : '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:14px;">No records</td></tr>';
+document.getElementById('print-area').innerHTML = `${getPrintHeader()}
+<div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+<div style="width:48px;height:48px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;color:#fff;">${initials}</div>
+<div><h1 style="font-size:1.4rem;font-weight:800;color:${color};margin:0;">${esc(s.name)}</h1>
+<div style="font-size:0.78rem;color:#777;">Student Progress Report · ${d}</div></div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
+${[['Assessments',s.records.length,color],['Average Score',(avg!==null?avg+'%':'—'),sc],['Topics Covered',topics.length,color]].map(([l,v,c])=>
+`<div style="border:1px solid #e0e0e0;border-radius:8px;padding:12px;text-align:center;">
+<div style="font-size:1.5rem;font-weight:800;color:${c}">${v}</div>
+<div style="font-size:0.72rem;color:#777;margin-top:2px;">${l}</div></div>`).join('')}
+</div>
+${topics.length?`<div style="font-size:0.88rem;font-weight:700;margin:14px 0 8px;border-left:3px solid ${color};padding-left:10px;">Topics Covered</div>
+<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:16px;">${topics.map(t=>`<span style="background:#e8f0fe;color:#1a73e8;padding:2px 8px;border-radius:10px;font-size:0.72rem;">${esc(t)}</span>`).join('')}</div>`:''}
+<div style="font-size:0.88rem;font-weight:700;margin:14px 0 8px;border-left:3px solid ${color};padding-left:10px;">Assessment Records</div>
+<table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+<thead><tr>${['Date','Assessment','Score','Topics','Notes'].map(h=>`<th style="background:#f4f4f8;padding:8px 10px;text-align:left;border-bottom:2px solid #e0e0e0;">${h}</th>`).join('')}</tr></thead>
+<tbody>${rows}</tbody>
+</table>
+${getPrintFooter()}`;
+window.print();
+}
+
+function exportProgressReport() {
+if (!students.length) { alert('No students to report on.'); return; }
+const color = schoolSettings.color||'#4f8ef7';
+const d = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+const allSc = students.flatMap(s=>s.records.filter(r=>r.score!==null).map(r=>r.score));
+const classAvg = allSc.length?Math.round(allSc.reduce((a,b)=>a+b,0)/allSc.length):null;
+const rows = students.map(s=>{
+const avg=getAvg(s); const topics=allTopics(s);
+const sc=avg===null?'#999':avg>=75?'#00c07a':avg>=50?'#c8960c':'#cc2244';
+return `<tr>
+<td style="padding:7px 10px;border-bottom:1px solid #eee;"><strong>${esc(s.name)}</strong></td>
+<td style="padding:7px 10px;border-bottom:1px solid #eee;">${s.records.length}</td>
+<td style="padding:7px 10px;border-bottom:1px solid #eee;font-weight:700;color:${sc}">${avg!==null?avg+'%':'—'}</td>
+<td style="padding:7px 10px;border-bottom:1px solid #eee;">${topics.slice(0,4).map(t=>`<span style="background:#e8f0fe;color:#1a73e8;padding:1px 6px;border-radius:8px;font-size:0.7rem;">${esc(t)}</span>`).join(' ')}${topics.length>4?` +${topics.length-4}`:''}</td>
+<td style="padding:7px 10px;border-bottom:1px solid #eee;font-style:italic;color:#555;font-size:0.78rem;">${s.records.length?esc((s.records[s.records.length-1].note||'').substring(0,60)):'—'}</td>
+</tr>`;
+}).join('');
+document.getElementById('print-area').innerHTML = `${getPrintHeader()}
+<h1 style="color:${color};border-bottom:3px solid ${color};font-size:1.55rem;font-weight:800;padding-bottom:10px;margin-bottom:6px;">Class Progress Report</h1>
+<div style="font-size:0.8rem;color:#555;margin-bottom:22px;display:flex;gap:16px;flex-wrap:wrap;">
+<div>📅 <strong>${d}</strong></div><div>👥 <strong>${students.length} Students</strong></div>
+${classAvg!==null?`<div>📊 Class Avg: <strong>${classAvg}%</strong></div>`:''}
+${schoolSettings.subject?`<div>📚 <strong>${esc(schoolSettings.subject)}</strong></div>`:''}
+</div>
+<table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+<thead><tr>${['Student','Assessments','Average','Topics','Latest Note'].map(h=>`<th style="background:#f4f4f8;padding:8px 10px;text-align:left;border-bottom:2px solid #ddd;">${h}</th>`).join('')}</tr></thead>
+<tbody>${rows}</tbody>
+</table>
+${getPrintFooter()}`;
+window.print();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SHARED HELPERS
+// ═══════════════════════════════════════════════════════════════
+function copyResult(id) {
+navigator.clipboard.writeText(document.getElementById(id).textContent);
+toast('📋 Copied to clipboard!', 'ok', 1500);
+}
+function sendToChat(id) {
+const text = document.getElementById(id).textContent;
+document.getElementById('chatInput').value = 'Please help me refine this:\n\n' + text.substring(0,300) + '…';
+nav('chat');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+renderStudents();
+loadSettings();
+renderSavedTemplates();
+renderRegister();
+renderIncidents();
+initFirebase();
+</script>
+</body>
+</html>
+
+
